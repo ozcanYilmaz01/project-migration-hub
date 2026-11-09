@@ -59,6 +59,7 @@
             <div id="search-alert" class="search-alert" role="alert" hidden>
               <span class="search-alert-icon" aria-hidden="true">!</span>
               <div class="search-alert-copy"><strong id="search-alert-title">Possible metal here</strong><span id="search-alert-detail"></span></div>
+              <button id="search-alert-signal" type="button" class="link-btn">See signal</button>
               <button id="search-alert-dismiss" type="button" class="quiet small">Dismiss</button>
             </div>
           </section>
@@ -74,6 +75,7 @@
       </div>
 
       <div class="drive-bar">
+        <button id="details-toggle" type="button" class="quiet details-toggle" aria-expanded="false" aria-controls="details-drawer">Details ▸</button>
         <label class="drive-source" for="drive-control-source"><span>Drive with</span>
           <select id="drive-control-source"><option value="keyboard">Keyboard (WASD)</option><option value="controller">Gamepad</option><option value="wheel">Steering wheel</option><option value="rc">RC through ROS</option></select>
         </label>
@@ -83,7 +85,7 @@
         <button type="button" class="quiet" data-open-settings="input">Input setup</button>
       </div>
 
-      <section class="dock" aria-label="Live data">
+      <section class="dock" id="details-drawer" aria-label="Details">
         <nav class="dock-tabs" role="tablist" aria-label="Live data views">
           <button type="button" role="tab" class="dock-tab active" data-dock-tab="overview" aria-selected="true">Map</button>
           <button type="button" role="tab" class="dock-tab" data-dock-tab="detector" aria-selected="false">Detector</button>
@@ -94,7 +96,7 @@
 
         <div class="dock-pane pane-split pane-signal" data-dock-pane="overview" role="tabpanel">
           <section class="pane-section detector-panel" aria-labelledby="detector-heading">
-            <div class="section-head"><h2 id="detector-heading">Detector signal</h2><span id="detector-alert-note" class="head-note alert-note">Alert at — V</span><span id="detector-status" class="badge neutral">NO DATA</span><strong id="detector-voltage" class="head-value">— V</strong></div>
+            <div class="section-head"><h2 id="detector-heading">Detector signal</h2><span id="detector-alert-note" class="head-note alert-note">Alert at — V</span><span id="detector-status" class="badge neutral">NO DATA</span><strong id="detector-voltage" class="head-value raw-readout">— V</strong><strong class="head-value word-readout" data-words-for="detector-voltage" data-tip="">No signal yet</strong></div>
             <div class="chart-box detector-chart"><canvas id="detector-history" role="img" aria-label="Filtered detector voltage over the last 30 seconds"></canvas></div>
             <div class="section-foot"><p id="detector-detail">Waiting for detector data.</p><span id="sweep-status" role="status"></span></div>
           </section>
@@ -110,7 +112,7 @@
         <div class="dock-pane pane-split pane-detector" data-dock-pane="detector" role="tabpanel" hidden>
           <section class="pane-section detector-diagnostics-panel" aria-labelledby="signal-heading">
             <div class="section-head"><h2 id="signal-heading">Filtered signal</h2><span id="detector-raw" class="head-note" hidden></span></div>
-            <div class="signal-value"><strong id="signal">—</strong><span>V</span></div>
+            <div class="signal-value raw-readout"><strong id="signal">—</strong><span>V</span></div><p class="signal-words word-readout" data-words-for="signal" data-tip="">No signal yet</p>
             <div class="meter" aria-label="Detector signal"><span id="meter-fill"></span><i id="alert-marker" class="alert-marker" title="Search alert level"></i><i id="threshold" title="Mine level"></i></div>
             <canvas id="radar-view" aria-label="Detector sweep radar"></canvas>
           </section>
@@ -135,6 +137,7 @@
             <div class="button-row">
               <button id="start-probing" type="button">Probe once</button>
             </div>
+            <p class="signal-words word-readout" data-words-for="probe" data-tip="">Waiting for the probe</p>
             <div class="section-head probe-trace-heading"><h3>Contact and depth</h3><span class="head-note">Last 30 s</span></div>
             <div class="chart-box manual-probe-chart"><canvas id="manual-probe-history" role="img" aria-label="Filtered probe contact voltage and saved threshold in volts, with measured encoder depth in millimetres over the last 30 seconds"></canvas></div>
             <p id="manual-probe-chart-error" class="error-line" role="status" hidden></p>
@@ -193,10 +196,11 @@
         <div class="dock-pane pane-split pane-vehicle" data-dock-pane="drive" role="tabpanel" hidden>
           <section class="pane-section power-panel" aria-labelledby="power-heading">
             <div class="section-head"><h2 id="power-heading">Battery</h2><span id="power-status" class="badge neutral">NO DATA</span></div>
-            <div class="power-summary"><div><span>Draw</span><strong id="battery-watts">—</strong></div><div><span>Charge</span><strong id="battery-charge">—</strong></div></div>
+            <p class="signal-words word-readout" data-words-for="battery" data-tip="">No battery data</p>
+            <div class="power-summary raw-readout"><div><span>Draw</span><strong id="battery-watts">—</strong></div><div><span>Charge</span><strong id="battery-charge">—</strong></div></div>
             <progress id="battery-level" max="100" aria-label="Battery charge" hidden></progress>
             <svg id="power-history" viewBox="0 0 300 38" preserveAspectRatio="none" role="img" aria-label="Battery power over the last minute"><polyline id="power-history-line" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-            <div class="power-metrics"><span>Voltage <b id="battery-voltage">—</b></span><span>Current <b id="battery-current">—</b></span><span>Temperature <b id="battery-temperature">—</b></span><span>Cell spread <b id="battery-cells">—</b></span></div>
+            <div class="power-metrics raw-readout"><span>Voltage <b id="battery-voltage">—</b></span><span>Current <b id="battery-current">—</b></span><span>Temperature <b id="battery-temperature">—</b></span><span>Cell spread <b id="battery-cells">—</b></span></div>
           </section>
           <section class="pane-section motors-panel" aria-labelledby="motors-heading">
             <div class="section-head"><h2 id="motors-heading">Motors <span class="tip" data-tip="Battery draw is volts × amps; a negative value means charging. Motor readings are separate and not added to it."></span></h2></div>
