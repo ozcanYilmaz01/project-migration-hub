@@ -1,0 +1,37 @@
+# Linux
+*~
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# macOS
+.DS_Store
+
+# VS Code
+.vscode/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv
+.pytest_cache/
+*.egg-info/
+DevTools/gnss_viewer/.env
+
+# mkdocs
+venv/
+site/
+.calibration.json.lock
+
+# ROS workspace output
+/build/
+/install/
+/log/
+
+# Operator runtime locks
+.operator_config.json.lock
+
+# Durable vehicle mission data
+field*.sqlite3*

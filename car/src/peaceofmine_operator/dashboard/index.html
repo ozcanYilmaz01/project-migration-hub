@@ -1,0 +1,892 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#09131a">
+  <title>PeaceOfMine Operator</title>
+  <link rel="stylesheet" href="assets/leaflet.css">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <section id="connection-overlay" class="connection-overlay" role="status" aria-live="polite">
+    <div class="connection-card">
+      <span class="connection-pulse" aria-hidden="true"></span>
+      <h2 id="connection-title">Connecting to operator stack</h2>
+      <p id="connection-detail">Waiting for the gateway on this Raspberry Pi.</p>
+      <div class="connection-actions">
+        <button id="retry-connection" type="button" class="primary">Retry now</button>
+        <button id="offline-settings" type="button" class="quiet">Input settings</button>
+      </div>
+    </div>
+  </section>
+  <main>
+    <header class="topbar">
+      <div class="brand"><h1>PeaceOfMine</h1><span id="environment-label">Connecting</span></div>
+      <div class="topbar-status" aria-label="Vehicle status">
+        <div class="connection"><span id="connection-dot"></span><span id="connection">Connecting</span></div>
+        <span id="px4-arming" class="badge neutral" role="status" title="Waiting for MAVROS state">PX4 UNKNOWN</span>
+        <span id="rc-safety" class="badge neutral" title="PX4 safety status">RC UNKNOWN · LOCKED</span>
+        <button id="power-chip" type="button" class="power-chip" title="Battery · opens the Vehicle tab"><span id="power-chip-pct">—</span><span id="power-chip-w">— W</span></button>
+        <span id="control-owner" class="badge neutral">SPECTATING</span>
+      </div>
+      <div class="topbar-actions">
+        <button id="settings" type="button" class="quiet">Setup</button>
+        <button id="take-control" type="button" class="primary">Take control</button>
+        <button id="stop-controls" type="button" class="danger" disabled>STOP</button>
+      </div>
+    </header>
+
+    <section class="workspace" aria-label="Operator workspace">
+      <div class="stage-frame">
+        <div id="camera-stage" class="camera-stage" data-focus="forward">
+          <section id="camera-panel" class="viewport forward-camera" tabindex="0" aria-label="Front camera. Click to drive with WASD. Escape or clicking outside releases the keys.">
+            <canvas id="forward-view" aria-label="Simulated front camera view"></canvas>
+            <video id="forward-video" autoplay muted playsinline class="camera-feed hidden" aria-label="Front camera"></video>
+            <img id="forward-network-camera" draggable="false" class="camera-feed hidden" alt="Front camera stream">
+            <div class="camera-label" id="forward-camera-label">VIRTUAL FORWARD CAMERA</div>
+            <div class="camera-latency hidden" id="forward-camera-latency">CAMERA --</div>
+            <div id="input-lock" class="input-lock hidden">CLICK CAMERA FOR INPUT</div>
+            <div class="speed-readout"><span>SPEED</span><strong id="speed">0.00 m/s</strong></div>
+            <div id="search-alert" class="search-alert" role="alert" hidden>
+              <span class="search-alert-icon" aria-hidden="true">!</span>
+              <div class="search-alert-copy"><strong id="search-alert-title">Possible metal here</strong><span id="search-alert-detail"></span></div>
+              <button id="search-alert-dismiss" type="button" class="quiet small">Dismiss</button>
+            </div>
+          </section>
+          <section id="probe-camera-panel" class="viewport probe-camera" aria-label="Probe camera">
+            <video id="aux-video" autoplay muted playsinline class="aux-camera hidden" aria-label="Probe camera"></video>
+            <img id="aux-network-camera" draggable="false" class="aux-camera hidden" alt="Probe camera stream">
+            <div class="camera-label aux-camera-label hidden" id="aux-camera-label">PROBE CAMERA</div>
+            <div class="aux-camera-latency hidden" id="aux-camera-latency">--</div>
+            <div id="probe-camera-empty" class="camera-empty"><strong>No probe camera</strong><span>A probe camera is optional.</span><button type="button" class="quiet" data-open-settings="cameras">Choose camera</button></div>
+          </section>
+        </div>
+        <button id="camera-swap" type="button" class="camera-swap" title="Swap the large and small camera">⇄ <span id="camera-swap-label">Enlarge probe camera</span></button>
+      </div>
+
+      <div class="drive-bar">
+        <label class="drive-source" for="drive-control-source"><span>Drive with</span>
+          <select id="drive-control-source"><option value="keyboard">Keyboard (WASD)</option><option value="controller">Gamepad</option><option value="wheel">Steering wheel</option><option value="rc">RC through ROS</option></select>
+        </label>
+        <div class="drive-text input-state"><p id="controller">Choose an input</p><p id="controller-mapping"></p></div>
+        <div class="drive-text drive-feedback"><p id="drive-block">Take control when the RC allows driving.</p><p id="drive-help">Click the camera for WASD · Esc releases the keys · hold Space to sweep</p></div>
+        <span id="arm-state" class="badge neutral">DISARMED</span>
+        <button type="button" class="quiet" data-open-settings="input">Input setup</button>
+      </div>
+
+      <section class="dock" aria-label="Live data">
+        <nav class="dock-tabs" role="tablist" aria-label="Live data views">
+          <button type="button" role="tab" class="dock-tab active" data-dock-tab="overview" aria-selected="true">Signal &amp; map</button>
+          <button type="button" role="tab" class="dock-tab" data-dock-tab="detector" aria-selected="false">Detector</button>
+          <button type="button" role="tab" class="dock-tab" data-dock-tab="probe" aria-selected="false">Probe</button>
+          <button type="button" role="tab" class="dock-tab" data-dock-tab="log" aria-selected="false">Mission log <span id="mission-record-count" class="tab-count">0 entries</span></button>
+          <button type="button" role="tab" class="dock-tab" data-dock-tab="drive" aria-selected="false">Vehicle</button>
+        </nav>
+
+        <div class="dock-pane pane-split pane-signal" data-dock-pane="overview" role="tabpanel">
+          <section class="pane-section detector-panel" aria-labelledby="detector-heading">
+            <div class="section-head"><h2 id="detector-heading">Detector signal</h2><span id="detector-alert-note" class="head-note alert-note">Alert at — V</span><span id="detector-status" class="badge neutral">NO DATA</span><strong id="detector-voltage" class="head-value">— V</strong></div>
+            <div class="chart-box detector-chart"><canvas id="detector-history" role="img" aria-label="Filtered detector voltage over the last 30 seconds"></canvas></div>
+            <div class="section-foot"><p id="detector-detail">Waiting for detector data.</p><span id="sweep-status" role="status"></span></div>
+          </section>
+          <section class="pane-section map-panel" aria-labelledby="map-heading">
+            <div class="section-head"><h2 id="map-heading">Field map</h2><select id="map-mode" aria-label="Field map view"><option value="gnss">GNSS map</option><option value="local">Local grid</option></select><button id="map-follow" type="button" class="quiet" aria-pressed="true" disabled>Follow</button></div>
+            <div id="gnss-map" class="field-map" aria-label="Geographic field map"><span id="gnss-map-empty" class="map-empty meta">Waiting for GNSS position</span></div>
+            <p id="gnss-map-status" class="meta">Waiting for field recorder</p>
+            <canvas hidden id="map-view" aria-label="Local field map"></canvas>
+            <div class="section-foot"><p id="position">X 0.0 &middot; Y 0.0 &middot; heading 0&deg;</p></div>
+          </section>
+        </div>
+
+        <div class="dock-pane pane-split pane-detector" data-dock-pane="detector" role="tabpanel" hidden>
+          <section class="pane-section detector-diagnostics-panel" aria-labelledby="signal-heading">
+            <div class="section-head"><h2 id="signal-heading">Filtered signal</h2><span id="detector-raw" class="head-note" hidden></span></div>
+            <div class="signal-value"><strong id="signal">—</strong><span>V</span></div>
+            <div class="meter" aria-label="Detector signal"><span id="meter-fill"></span><i id="alert-marker" class="alert-marker" title="Search alert level"></i><i id="threshold" title="Mine level"></i></div>
+            <canvas id="radar-view" aria-label="Detector sweep radar"></canvas>
+          </section>
+          <section class="pane-section detector-trend" aria-labelledby="history-heading">
+            <div class="section-head"><h2 id="history-heading">Signal and arm angle</h2><span class="head-note" data-tip="The last 30 seconds are shown. The detector axis uses two minutes of measured signal. Calibration lines appear when in range.">Last 30 s</span><button type="button" id="detector-expand" class="quiet" aria-pressed="false" aria-controls="detector-diagnostics-history">Expand chart</button></div>
+            <div class="chart-box detector-diagnostics-chart"><canvas id="detector-diagnostics-history" aria-label="Filtered detector voltage, arm angle and calibration levels over the last 30 seconds"></canvas></div>
+          </section>
+          <section class="pane-section pane-actions" aria-labelledby="align-heading">
+            <div class="section-head"><h2 id="align-heading">Aim the probe</h2></div>
+            <button id="detector-align-probe" type="button" class="quiet" disabled title="Turn the probe to the strongest detector reading">Aim at strongest signal</button>
+            <p id="align-probe-hint" class="note">No detector peak recorded yet.</p>
+            <button type="button" class="quiet" data-open-settings="detector">Calibrate detector</button>
+          </section>
+        </div>
+
+        <div class="dock-pane pane-split pane-probe" data-dock-pane="probe" role="tabpanel" hidden>
+          <section class="pane-section probe-diagnostics-panel" aria-labelledby="manual-probe-heading">
+            <div class="section-head"><h2 id="manual-probe-heading">Manual probe</h2></div>
+            <div class="probe-graphic" aria-hidden="true"><span id="probe-arm"></span><i></i></div>
+            <label class="field-label" for="probe-slider">Push to depth</label>
+            <input id="probe-slider" type="range">
+            <div class="button-row">
+              <button id="start-probing" type="button">Probe once</button>
+            </div>
+            <div class="section-head probe-trace-heading"><h3>Contact and depth</h3><span class="head-note">Last 30 s</span></div>
+            <div class="chart-box manual-probe-chart"><canvas id="manual-probe-history" role="img" aria-label="Filtered probe contact voltage and saved threshold in volts, with measured encoder depth in millimetres over the last 30 seconds"></canvas></div>
+            <p id="manual-probe-chart-error" class="error-line" role="status" hidden></p>
+            <p id="manual-probe-status" class="note">Waiting for probe readings.</p>
+          </section>
+          <section class="pane-section probe-load" aria-labelledby="probe-map-heading">
+            <div class="section-head"><h2 id="probe-map-heading">Probe scan map <span class="tip" data-tip="Each marker represents a planned probe position. Read its bearing and depth on the fan or in the grid below. A dash means depth is unknown. The dashed line marks the target bearing. Increasing bearings turn left from it."></span></h2><span id="probe-map-depth" class="head-note"></span></div>
+            <dl id="probe-map-centers" class="probe-map-centers" hidden>
+              <div><dt>Target bearing</dt><dd id="probe-map-bearing">—</dd></div>
+              <div><dt>Commanded arm center</dt><dd id="probe-map-arm-center">—</dd></div>
+              <div><dt>Scan plan</dt><dd id="probe-map-plan">—</dd></div>
+            </dl>
+            <div class="probe-scan-plot">
+              <svg id="probe-scan-map" role="img" viewBox="0 0 460 134" aria-label="Probe scan positions" hidden></svg>
+              <span id="probe-map-empty" class="note">Waiting for a probe scan.</span>
+            </div>
+            <div class="probe-map-legend" aria-label="Scan result legend"><span class="map-contact">◆ Early contact</span><span class="map-clear">● Target reached</span><span class="map-unknown">○ Pending / unknown</span></div>
+            <ul id="probe-map-readings" class="probe-map-readings" aria-label="Depth by probe bearing" hidden></ul>
+            <p class="section-foot probe-sensor-readout"><span>Live contact sensor <span class="tip" data-tip="The selected, filtered ADC channel detects contact during descent. The motor readings below show servo load and current."></span></span><strong id="probe-map-sensor">Waiting for ADC input</strong></p>
+            <details id="probe-diagnostics" class="more"><summary>More readings · probe motor</summary>
+              <div class="section-head pressure-heading"><h3 id="load-heading">Motor load</h3><span class="head-note">Last 30 s</span><strong id="probe-pressure" class="head-value">—</strong></div>
+              <div class="chart-box probe-load-chart"><canvas id="pressure-history" aria-label="Estimated probe motor load over the last thirty seconds"></canvas></div>
+              <button id="probe-zero-contact" type="button" class="quiet">Zero motor load</button>
+              <small id="probe-zero-status" class="note">Lift the probe clear of the ground before zeroing.</small>
+              <div class="probe-contact-readings">
+                <span>Motor current <strong id="probe-current">—</strong></span>
+                <span><span id="probe-current-change-label">Current magnitude</span> <strong id="probe-current-change">—</strong></span>
+                <span>2 s peak <strong id="probe-contact-peak">—</strong></span>
+                <span>Position error <strong id="probe-position-error">—</strong></span>
+                <span>Data rate <strong id="probe-contact-rate">—</strong></span>
+              </div>
+            </details>
+          </section>
+        </div>
+
+        <div class="dock-pane pane-log" data-dock-pane="log" role="tabpanel" hidden>
+          <section class="pane-section target-log-panel" aria-labelledby="target-log-heading">
+            <div class="section-head">
+              <h2 id="target-log-heading">Mission log <span class="tip" data-tip="Saved on the car and shared with all viewers. A pump run does not prove a visible mark."></span></h2>
+              <span id="target-count" class="badge neutral">0 TARGETS</span>
+              <div class="target-log-actions">
+                <button id="mark-target-btn" type="button" class="quiet" title="Save the car's position without running the pump">Log position</button>
+                <button id="export-target-log" type="button" class="quiet">Export CSV</button>
+                <button id="clear-target-log" type="button" class="quiet">Clear</button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table class="target-table">
+                <thead><tr><th scope="col">ID</th><th scope="col">Position</th><th scope="col" title="Recorded filtered detector voltage">Detector (V)</th><th scope="col">Contact depth (mm)</th><th scope="col" title="Filtered probe voltage when descent ended">Probe sensor (V)</th><th scope="col">Result</th><th scope="col">Time</th></tr></thead>
+                <tbody id="target-log-body"><tr class="empty-row"><td colspan="7">Nothing logged yet. Log a position, mark the ground or run a probe.</td></tr></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+
+        <div class="dock-pane pane-split pane-vehicle" data-dock-pane="drive" role="tabpanel" hidden>
+          <section class="pane-section power-panel" aria-labelledby="power-heading">
+            <div class="section-head"><h2 id="power-heading">Battery</h2><span id="power-status" class="badge neutral">NO DATA</span></div>
+            <div class="power-summary"><div><span>Draw</span><strong id="battery-watts">—</strong></div><div><span>Charge</span><strong id="battery-charge">—</strong></div></div>
+            <progress id="battery-level" max="100" aria-label="Battery charge" hidden></progress>
+            <svg id="power-history" viewBox="0 0 300 38" preserveAspectRatio="none" role="img" aria-label="Battery power over the last minute"><polyline id="power-history-line" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+            <div class="power-metrics"><span>Voltage <b id="battery-voltage">—</b></span><span>Current <b id="battery-current">—</b></span><span>Temperature <b id="battery-temperature">—</b></span><span>Cell spread <b id="battery-cells">—</b></span></div>
+          </section>
+          <section class="pane-section motors-panel" aria-labelledby="motors-heading">
+            <div class="section-head"><h2 id="motors-heading">Motors <span class="tip" data-tip="Battery draw is volts × amps; a negative value means charging. Motor readings are separate and not added to it."></span></h2></div>
+            <div class="power-subheading">Drive motor (ESC) <span id="esc-status">No data</span></div>
+            <div id="esc-readings" class="power-esc">Waiting for ESC data</div>
+            <div class="power-subheading">Arm servo <span id="power-arm">No data</span></div>
+          </section>
+          <section class="pane-section drive-diagnostics" aria-labelledby="link-heading">
+            <div class="section-head"><h2 id="link-heading">Controller &amp; link</h2><span id="client-count" class="head-note">1 viewer</span></div>
+            <p class="pad-raw" id="pad-raw">Waiting for the gamepad…</p>
+            <svg id="pad-visual" class="pad-visual" viewBox="0 0 280 132" role="img" aria-label="Gamepad input preview">
+              <rect class="pad-shell" x="18" y="30" width="244" height="86" rx="32"/>
+              <rect id="pad-lt" class="pad-trigger" x="36" y="8" width="46" height="16" rx="5"/>
+              <rect id="pad-rt" class="pad-trigger" x="198" y="8" width="46" height="16" rx="5"/>
+              <rect id="pad-lb" class="pad-bumper" x="36" y="28" width="46" height="10" rx="3"/>
+              <rect id="pad-rb" class="pad-bumper" x="198" y="28" width="46" height="10" rx="3"/>
+              <text class="pad-label" x="59" y="20">LT</text>
+              <text class="pad-label" x="221" y="20">RT</text>
+              <text class="pad-label" x="59" y="37">LB</text>
+              <text class="pad-label" x="221" y="37">RB</text>
+              <circle class="pad-well" cx="78" cy="82" r="24"/>
+              <circle id="pad-ls" class="pad-stick" cx="78" cy="82" r="9"/>
+              <circle id="pad-y" class="pad-face" cx="202" cy="62" r="7"/>
+              <circle id="pad-b" class="pad-face" cx="220" cy="80" r="7"/>
+              <circle id="pad-a" class="pad-face" cx="202" cy="98" r="7"/>
+              <circle id="pad-x" class="pad-face" cx="184" cy="80" r="7"/>
+              <text class="pad-face-label" x="202" y="65">Y</text>
+              <text class="pad-face-label" x="220" y="83">B</text>
+              <text class="pad-face-label" x="202" y="101">A</text>
+              <text class="pad-face-label" x="184" y="83">X</text>
+            </svg>
+            <div class="latency"><span class="latency-label">Round trip</span><strong id="latency-value">-- ms</strong><canvas id="latency-graph" width="96" height="28" aria-label="Recent connection delay"></canvas></div>
+          </section>
+        </div>
+      </section>
+
+      <aside class="task-workbench mission" aria-labelledby="task-heading">
+        <div class="section-head"><h2 id="task-heading">Mission</h2><button id="inspection-stop" type="button" class="quiet small" disabled>Stop scan</button></div>
+        <nav class="workflow-actions" aria-label="Mission steps">
+          <div class="workflow-buttons">
+            <div class="operation-action">
+              <button id="mode-sweep-btn" type="button" class="mode-btn" title="Swing the detector coil while you drive">
+                <span class="mode-num">1</span><span class="mode-copy"><span class="mode-text">Search sweep</span><span class="mode-desc">Swing the coil while you drive</span></span>
+                <span id="mode-sweep-pill" class="badge neutral">OFF</span>
+              </button>
+              <small id="mode-sweep-help" class="step-note"></small>
+            </div>
+            <div class="operation-action">
+              <button id="mode-align-btn" type="button" class="mode-btn" disabled title="Confirm the hit with repeated sweeps">
+                <span class="mode-num">2</span><span class="mode-copy"><span class="mode-text">Confirm arc</span><span class="mode-desc">Compare repeated sweeps over the hit</span></span>
+                <span id="mode-align-pill" class="badge neutral">WAITING</span>
+              </button>
+              <small id="mode-align-help" class="step-note"></small>
+            </div>
+            <div class="operation-action">
+              <button id="mode-probe-btn" type="button" class="mode-btn" disabled title="Probe the planned positions around the confirmed bearing">
+                <span class="mode-num">3</span><span class="mode-copy"><span class="mode-text">Probe scan</span><span class="mode-desc">Probe the planned positions around the hit</span></span>
+                <span id="mode-probe-pill" class="badge neutral">SETUP REQUIRED</span>
+              </button>
+              <small id="mode-probe-help" class="step-note"></small>
+            </div>
+            <div class="operation-action">
+              <button id="mode-mark-btn" type="button" class="mode-btn" disabled title="Run a timed marking shot">
+                <span class="mode-num">4</span><span class="mode-copy"><span class="mode-text">Mark ground</span><span class="mode-desc">Pump a mark onto the spot</span></span>
+                <span id="mode-mark-pill" class="badge neutral">WAITING</span>
+              </button>
+              <small id="mode-mark-help" class="step-note"></small>
+            </div>
+          </div>
+        </nav>
+        <p id="operation-help" class="workflow-status" role="status">Connecting to the car…</p>
+        <div id="inspection-panel" hidden><p id="inspection-status" hidden></p><progress id="inspection-progress" max="1" value="0" aria-label="Scan progress" hidden></progress><details class="inspection-results"><summary>Scan results</summary><ol id="inspection-points" aria-label="Probe scan results"></ol></details></div>
+        <div id="notice" class="notice hidden" role="alert"></div>
+
+        <details id="search-task" class="task-controls" open><summary>Sweep and alert</summary>
+          <div class="field-row"><label for="sweep-speed">Sweep speed</label><output id="sweep-speed-value">36&deg;/s</output></div>
+          <input id="sweep-speed" type="range" value="36">
+          <div class="field-row"><label for="search-alert-level">Alert voltage <span class="tip" data-tip="Alerts when the filtered detector voltage crosses this level toward the calibrated mine response. Saved on the car."></span></label>
+            <span class="probe-cycle-input-wrap"><input id="search-alert-level" type="number" min="-6.144" max="6.144" step="any" required disabled><span id="search-alert-value" class="unit">V</span></span></div>
+          <div class="check-row">
+            <label class="check"><input id="search-alert-enabled" type="checkbox" checked> Show alert</label>
+            <label class="check"><input id="search-alert-sound" type="checkbox" checked> Beep</label>
+          </div>
+        </details>
+
+        <details id="probe-task" class="task-controls" open><summary>Probe controls <span id="probe-status" class="badge neutral">SETUP REQUIRED</span></summary>
+          <div class="probe-numbers">
+            <span>Depth now <strong id="probe-depth">—</strong></span>
+            <span>Target <strong id="probe-target">—</strong></span>
+          </div>
+          <div class="probe-cycle-card">
+            <div class="field-row probe-cycle-input-row">
+              <label for="probe-cycle-target">Deepest probe</label>
+              <div class="probe-cycle-input-wrap"><input id="probe-cycle-target" type="number" min="0.1" step="any" value="80" required><span class="unit">mm</span></div>
+            </div>
+            <div class="field-row"><span id="probe-adc-contact" class="note" role="status">Waiting for a contact reading.</span><button type="button" class="quiet" data-open-settings="contact">Contact setup</button></div>
+            <div id="probe-cycle-alert" class="probe-cycle-alert hidden" role="alert">
+              <span id="probe-cycle-alert-badge" class="badge active">CONTACT TRIGGER</span>
+              <span id="probe-cycle-alert-text">Contact detected. Retracting.</span>
+            </div>
+            <button id="probe-stop" type="button" class="danger-outline" data-tip="Releases the motor at once. Hold the probe so it does not drop.">Stop probe</button>
+          </div>
+          <p id="probe-cycle-help" class="step-note" role="status">Waiting for probe telemetry.</p>
+        </details>
+
+        <div class="setup-shortcuts"><button type="button" class="quiet" data-open-settings="arm">Arm setup</button><button type="button" class="quiet" data-open-settings="probe">Probe setup</button></div>
+      </aside>
+    </section>
+  </main>
+
+  <dialog id="settings-dialog" aria-labelledby="settings-title">
+    <form method="dialog" class="setup">
+      <header class="setup-head">
+        <h2 id="settings-title">Setup</h2>
+        <span id="setup-arming" class="badge neutral">PX4 UNKNOWN</span>
+        <span id="setup-owner" class="badge neutral">UNCLAIMED</span>
+        <button value="close" formnovalidate class="quiet" aria-label="Close settings">Close</button>
+      </header>
+
+      <nav class="setup-nav" aria-label="Settings sections" role="tablist" aria-orientation="vertical">
+        <p class="setup-nav-group" aria-hidden="true">Driving</p>
+        <button type="button" class="settings-tab active" role="tab" aria-selected="true" aria-controls="settings-input" data-settings-tab="input">Controls</button>
+        <button type="button" class="settings-tab" role="tab" aria-selected="false" aria-controls="settings-cameras" data-settings-tab="cameras">Cameras</button>
+        <p class="setup-nav-group" aria-hidden="true">Payload</p>
+        <button type="button" class="settings-tab" role="tab" aria-selected="false" aria-controls="settings-arm" data-settings-tab="arm">Arm</button>
+        <button type="button" class="settings-tab" role="tab" aria-selected="false" aria-controls="settings-probe" data-settings-tab="probe">Probe</button>
+        <button type="button" class="settings-tab" role="tab" aria-selected="false" aria-controls="settings-marking" data-settings-tab="marking">Marking</button>
+        <p class="setup-nav-group" aria-hidden="true">Sensors</p>
+        <button type="button" class="settings-tab" role="tab" aria-selected="false" aria-controls="settings-contact" data-settings-tab="contact">Probe contact</button>
+        <button type="button" class="settings-tab" role="tab" aria-selected="false" aria-controls="settings-detector" data-settings-tab="detector">Metal detector</button>
+        <button type="button" class="settings-tab" role="tab" aria-selected="false" aria-controls="settings-adc" data-settings-tab="adc">Sensor board</button>
+        <button type="button" class="settings-tab" role="tab" aria-selected="false" aria-controls="settings-gnss" data-settings-tab="gnss">GNSS</button>
+      </nav>
+
+      <div class="setup-body">
+
+      <!-- ============================================================ Controls -->
+      <section id="settings-input" class="settings-panel active" role="tabpanel" data-settings-panel="input">
+        <header class="panel-head">
+          <h3>Controls <span class="tip" data-tip="Choose the drive input on the main screen. The car stores the selected input and keyboard throttle limits. The physical RC switch always controls drive authority."></span></h3>
+          <output id="driving-feedback" class="meta" aria-live="polite"></output>
+        </header>
+        <div class="panel-grid cols-3">
+          <section id="device-settings" class="set-card">
+            <header class="card-head"><h4>Gamepad or wheel <span class="tip" data-tip="Press any button on the device so the browser can see it, then pick it here."></span></h4></header>
+            <label class="field"><span class="field-name">Device</span>
+              <select id="input-device"><option value="">Select a connected device</option></select>
+            </label>
+            <label class="field"><span class="field-name">Button layout</span>
+              <select id="pad-mapping">
+                <option value="auto">Auto (standard or Xbox 360)</option>
+                <option value="standard">Standard gamepad</option>
+                <option value="xbox360">Xbox 360 (Linux)</option>
+              </select>
+            </label>
+            <div class="raw-input">
+              <p class="field-name">What the browser sees</p>
+              <div id="raw-axes" class="raw-axes"></div>
+              <div id="raw-buttons" class="raw-buttons"></div>
+            </div>
+            <p id="device-info" class="meta"></p>
+          </section>
+
+          <section class="set-card">
+            <header class="card-head"><h4>Keyboard <span class="tip" data-tip="On the main screen, click the front camera, then use W A S D. Esc lets go of the keys."></span></h4></header>
+            <label class="field"><span class="field-name">Forward throttle limit <span class="unit">%</span></span>
+              <input id="keyboard-max-throttle" type="number" min="0" max="100" step="1" value="100" required>
+            </label>
+            <label class="field"><span class="field-name">Reverse throttle limit <span class="unit">%</span></span>
+              <input id="keyboard-reverse-throttle" type="number" min="0" max="100" step="1" value="100" required>
+            </label>
+            <div id="key-preview" class="key-preview" aria-label="Keyboard input preview"></div>
+            <div class="card-actions"><button type="button" id="keyboard-test">Drive with WASD</button></div>
+          </section>
+
+          <section class="set-card">
+            <header class="card-head"><h4>Steering</h4></header>
+            <label class="field" for="steering-sensitivity"><span class="field-name">Sensitivity <span class="tip" data-tip="How hard the car turns for a full stick or wheel turn. 100% is normal."></span></span><output id="sensitivity-value">100%</output></label>
+            <input id="steering-sensitivity" type="range" min="50" max="150" value="100" step="5">
+            <div class="input-preview">
+              <svg viewBox="0 0 160 160" role="img" aria-label="Steering input preview"><g id="steering-preview" transform="rotate(0 80 80)"><circle cx="80" cy="80" r="65"/><path d="M15 80 H145 M80 80 V145 M80 15 V35"/><circle cx="80" cy="80" r="16"/></g></svg>
+              <pre id="mapped-input"></pre>
+            </div>
+          </section>
+
+          <section id="rc-drive-settings" class="set-card hidden">
+            <header class="card-head"><h4>RC through ROS <span class="tip" data-tip="Select the ROS position on the transmitter and take control. The car reads its RC channels while the dashboard is focused. The middle switch position gives the transmitter direct control."></span></h4></header>
+            <output id="rc-drive-input" class="meta">Waiting for transmitter</output>
+          </section>
+          <section id="wheel-settings" class="set-card span-all hidden">
+            <header class="card-head"><h4>Wheel mapping <span class="tip" data-tip="Move each control and read its axis number under “What the browser sees” (starts at 0). Pedals read 0 released and 1 pressed."></span></h4></header>
+            <div id="wheel-mapping" class="mapping-grid"></div>
+          </section>
+        </div>
+        <details class="set-more"><summary>Gamepad or wheel not showing up?</summary>
+          <div class="set-more-body">
+            <p id="browser-status" class="meta"></p>
+            <ol class="steps">
+              <li>Open the dashboard over HTTPS or on localhost.</li>
+              <li>Plug the device into this laptop and press a button.</li>
+              <li>Still missing? Check it in the <a href="https://googlechrome.github.io/samples/gamepad-demo/" target="_blank" rel="noopener">Chrome gamepad tester</a>.</li>
+            </ol>
+          </div>
+        </details>
+      </section>
+
+      <!-- ============================================================= Cameras -->
+      <section id="settings-cameras" class="settings-panel" role="tabpanel" data-settings-panel="cameras" hidden>
+        <header class="panel-head">
+          <h3>Cameras <span class="tip" data-tip="Pick what the front and probe camera windows show."></span></h3>
+          <div class="panel-tools"><button id="refresh-cameras" type="button" class="quiet" data-tip="Ask this browser for permission to use cameras plugged into the laptop.">Allow laptop cameras</button></div>
+        </header>
+        <div class="status-bar">
+          <p id="camera-source-status" class="status-msg" role="status">Checking camera sources…</p>
+        </div>
+        <div class="panel-grid cols-2">
+          <article class="set-card camera-card">
+            <header class="card-head"><h4>Front camera</h4><span id="forward-preview-state" class="camera-state">Waiting</span></header>
+            <label class="field"><span class="field-name">Source</span><select id="forward-camera-source"><option value="virtual">Virtual forward camera</option></select></label>
+            <div class="camera-settings-preview"><canvas id="forward-settings-preview" width="640" height="360" aria-label="Main camera live preview"></canvas><p id="forward-preview-empty">Waiting for camera</p></div>
+            <div class="btn-row"><button type="button" id="forward-rotate">Rotate 90°</button><output id="forward-rotation">0°</output><button type="button" id="forward-camera-retry" class="quiet push-right">Reconnect</button></div>
+            <dl class="readouts cols-4">
+              <div><dt>Size</dt><dd id="forward-dimensions">—</dd></div>
+              <div><dt>Frame rate</dt><dd id="forward-fps">—</dd></div>
+              <div><dt>Delay</dt><dd id="forward-age">—</dd></div>
+              <div><dt>Type</dt><dd id="forward-source-kind">—</dd></div>
+            </dl>
+            <p id="forward-source-detail" class="meta mono"></p>
+          </article>
+          <article class="set-card camera-card">
+            <header class="card-head"><h4>Probe camera</h4><span id="auxiliary-preview-state" class="camera-state">Waiting</span></header>
+            <label class="field"><span class="field-name">Source</span><select id="aux-camera-source"><option value="off">Off</option></select></label>
+            <div class="camera-settings-preview"><canvas id="auxiliary-settings-preview" width="640" height="360" aria-label="Probe camera live preview"></canvas><p id="auxiliary-preview-empty">Waiting for camera</p></div>
+            <div class="btn-row"><button type="button" id="auxiliary-rotate">Rotate 90°</button><output id="auxiliary-rotation">0°</output><button type="button" id="auxiliary-camera-retry" class="quiet push-right">Reconnect</button></div>
+            <dl class="readouts cols-4">
+              <div><dt>Size</dt><dd id="auxiliary-dimensions">—</dd></div>
+              <div><dt>Frame rate</dt><dd id="auxiliary-fps">—</dd></div>
+              <div><dt>Delay</dt><dd id="auxiliary-age">—</dd></div>
+              <div><dt>Type</dt><dd id="auxiliary-source-kind">—</dd></div>
+            </dl>
+            <p id="auxiliary-source-detail" class="meta mono"></p>
+          </article>
+          <section class="set-card span-all card-inline">
+            <h4>Share with other operators <span class="tip" data-tip="Saves capture settings on the car. ROS view choices are shared automatically. Laptop cameras stay in this browser."></span></h4>
+            <p id="camera-config-feedback" class="status-msg" role="status">Not saved yet.</p>
+            <div class="btn-row"><button id="camera-revert-shared" type="button" class="quiet">Reload saved</button><button id="camera-save-shared" type="button" class="primary" disabled>Save for everyone</button></div>
+          </section>
+        </div>
+        <details class="set-more"><summary>Capture settings <span class="tip" data-tip="Applied after the car restarts. Use a fixed /dev/v4l/by-id path so the cameras don't swap after a reboot."></span></summary>
+          <div class="set-more-body">
+            <div id="camera-capture-settings"></div>
+          </div>
+        </details>
+      </section>
+
+      <!-- ================================================================= Arm -->
+      <section id="settings-arm" class="settings-panel" role="tabpanel" data-settings-panel="arm" hidden>
+        <header class="panel-head">
+          <h3>Arm <span class="tip" data-tip="The arm swings the detector coil from side to side. Record its safe left, centre and right limits."></span></h3>
+          <div class="panel-tools"><button type="button" id="arm-calibration-stop" class="danger">Stop · release motor</button></div>
+        </header>
+        <div class="status-bar">
+          <p id="arm-feedback" class="arm-feedback status-msg" role="status" aria-live="polite">Take control. The RC remote must allow motion.</p>
+          <dl class="readouts inline">
+            <div><dt>Motor</dt><dd id="arm-servo-status">Waiting for driver</dd></div>
+            <div><dt>Position</dt><dd id="arm-servo-position">—</dd></div>
+          </dl>
+        </div>
+        <section class="set-card card-inline">
+          <h4><span class="step">1</span>Connect</h4>
+          <button id="arm-take-control" type="button" class="primary">Take control</button>
+          <label class="field field-inline grow"><span class="field-name">Motor</span><select id="arm-servo-id"><option value="">Scanning for motors…</option></select></label>
+          <div class="btn-row"><button type="button" id="arm-select-id">Use this motor</button><button type="button" id="arm-reconnect" class="quiet">Reconnect</button></div>
+          <p id="arm-calibration-access" class="meta span-row" role="status"></p>
+        </section>
+        <div class="panel-grid cols-2">
+          <section class="set-card">
+            <header class="card-head"><h4><span class="step">2</span>Move the arm <span class="tip" data-tip="Hold a button to move; let go to stop. Jogging can go past the saved limits, so watch the linkage."></span></h4></header>
+            <div class="hold-row">
+              <button type="button" id="arm-jog-left">← Hold left</button>
+              <button type="button" id="arm-jog-right">Hold right →</button>
+            </div>
+            <p id="arm-jog-status" class="arm-jog-status status-msg" role="status">Jogging disabled</p>
+            <label class="field"><span class="field-name">Jog speed <span class="unit">°/s</span></span><input id="arm-jog-speed" type="number" step="any" value="2" required></label>
+            <label class="field" for="arm-position-slider"><span class="field-name">Go to position</span><output id="arm-position-label">—</output></label>
+            <input id="arm-position-slider" type="range" min="0" max="4095" step="1" value="0" disabled>
+          </section>
+          <section class="set-card">
+            <header class="card-head"><h4><span class="step">3</span>Record the limits <span class="tip" data-tip="Left is the higher encoder angle. Release the jog button and record each position. Saving updates the captured positions. Unrecorded rows keep their saved positions. Hold Go to move to the saved position in that row."></span></h4></header>
+            <div class="table-wrap">
+              <table class="set-table arm-points-table">
+                <thead><tr><th scope="col">Limit</th><th scope="col">Captured</th><th scope="col">Saved</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+                <tbody>
+                  <tr><th scope="row">Left</th><td><output id="arm-recorded-maximum">—</output></td><td><output id="arm-saved-maximum">—</output></td><td class="cell-actions"><button type="button" id="arm-capture-maximum" aria-label="Record left limit">Record</button><button type="button" id="arm-move-maximum" class="quiet" aria-label="Go to saved left limit">Go</button></td></tr>
+                  <tr><th scope="row">Centre</th><td><output id="arm-recorded-center">—</output></td><td><output id="arm-saved-center">—</output></td><td class="cell-actions"><button type="button" id="arm-capture-center" aria-label="Record centre">Record</button><button type="button" id="arm-move-center" class="quiet" aria-label="Go to saved centre">Go</button></td></tr>
+                  <tr><th scope="row">Right</th><td><output id="arm-recorded-minimum">—</output></td><td><output id="arm-saved-minimum">—</output></td><td class="cell-actions"><button type="button" id="arm-capture-minimum" aria-label="Record right limit">Record</button><button type="button" id="arm-move-minimum" class="quiet" aria-label="Go to saved right limit">Go</button></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="card-actions"><button type="button" id="arm-apply-limits" class="primary" aria-describedby="arm-limits-validation">Save limits</button></div>
+            <p id="arm-limits-validation" class="status-msg" role="status"></p>
+          </section>
+          <section class="set-card">
+            <header class="card-head"><h4>Probe alignment</h4></header>
+            <div class="inline-fields">
+              <label class="field"><span class="field-name">Detector-to-probe offset <span class="unit">°</span> <span class="tip" data-tip="Arm command = detector bearing minus this signed offset. A saved change applies to the next aim or probe scan."></span></span>
+                <input id="arm-probe-offset" type="number" min="-180" max="180" step="any" required readonly></label>
+              <button id="arm-probe-offset-save" type="button" class="primary" disabled>Save on car</button>
+            </div>
+            <p id="arm-probe-offset-status" class="status-msg" role="status">Waiting for car settings.</p>
+          </section>
+          <section class="set-card">
+            <header class="card-head"><h4>Probe scan</h4></header>
+            <div class="fields-2">
+              <label class="field"><span class="field-name">Point count</span><input id="arm-scan-count" type="number" min="1" max="31" step="1" required readonly></label>
+              <label class="field"><span class="field-name">Point spacing <span class="unit">°</span></span><input id="arm-scan-spacing" type="number" min="0.1" max="180" step="any" required readonly></label>
+            </div>
+            <output id="arm-scan-coverage" class="meta" for="arm-scan-count arm-scan-spacing"></output>
+            <div class="card-actions"><button id="arm-scan-save" type="button" class="primary" disabled>Save on car</button></div>
+            <p id="arm-scan-status" class="status-msg" role="status">Waiting for car settings.</p>
+          </section>
+        </div>
+        <details class="set-more"><summary>Speed and acceleration</summary>
+          <div class="set-more-body">
+            <div class="inline-fields">
+              <label class="field"><span class="field-name">Top speed <span class="unit">°/s</span></span><input id="arm-max-speed" type="number" min="0.684" max="699.732" step="any" required></label>
+              <label class="field"><span class="field-name">Acceleration <span class="unit">°/s²</span></span><input id="arm-acceleration" type="number" min="8.583" max="2180.082" step="any" required></label>
+              <button type="button" id="arm-apply-motion">Save</button>
+            </div>
+          </div>
+        </details>
+        <details id="arm-diagnostics" class="set-more"><summary>Motor readings</summary>
+          <div class="set-more-body diag-grid">
+            <table class="set-table kv" id="arm-telemetry"><tbody>
+              <tr><th scope="row">Goal position</th><td id="arm-goal">—</td></tr>
+              <tr><th scope="row">Torque on</th><td id="arm-torque">—</td></tr>
+              <tr><th scope="row">Estimated load</th><td id="arm-load">—</td></tr>
+              <tr><th scope="row">Torque limit</th><td id="arm-torque-limit">—</td></tr>
+              <tr><th scope="row">Max torque setting</th><td id="arm-max-torque">—</td></tr>
+              <tr><th scope="row">Current</th><td id="arm-current">—</td></tr>
+              <tr><th scope="row">Speed / limit</th><td id="arm-speed">—</td></tr>
+              <tr><th scope="row">Moving</th><td id="arm-moving">—</td></tr>
+              <tr><th scope="row">Voltage / temperature</th><td id="arm-power">—</td></tr>
+              <tr><th scope="row">Model / firmware</th><td id="arm-model">—</td></tr>
+              <tr><th scope="row">PX4 permission</th><td id="arm-px4">—</td></tr>
+            </tbody></table>
+            <div class="diag-chart">
+              <p class="field-name">Estimated load · last 60 s <span class="tip" data-tip="The motor's own estimate, not a measured force."></span></p>
+              <div class="servo-load-chart"><canvas id="arm-load-history" aria-label="Signed estimated servo load history" role="img"></canvas></div>
+              <p id="arm-servo-details" class="meta"></p>
+            </div>
+          </div>
+        </details>
+        <details class="set-more"><summary>Saved launch values <span class="tip" data-tip="Saved values override the launch file. 4096 ticks = 360°."></span></summary>
+          <div class="set-more-body">
+            <textarea id="arm-launch-xml" class="code-box" aria-label="Saved launch settings" rows="8" readonly spellcheck="false"></textarea>
+          </div>
+        </details>
+      </section>
+
+      <!-- =============================================================== Probe -->
+      <section id="settings-probe" class="settings-panel" role="tabpanel" data-settings-panel="probe" hidden>
+        <header class="panel-head">
+          <h3>Probe <span class="tip" data-tip="Calibrate travel and set the speeds for probing and returning. The probe homes automatically before a scan. Set the contact limit in Setup → Probe contact."></span></h3>
+          <div class="panel-tools"><button type="button" class="quiet" data-goto-settings="contact" data-tip="Contact input and voltage calibration">Probe contact →</button><button type="button" id="probe-servo-calibration-stop" class="danger">Stop · release motor</button></div>
+        </header>
+        <div class="status-bar">
+          <p id="probe-servo-feedback" class="arm-feedback status-msg" role="status" aria-live="polite">Take control. The RC remote must allow motion.</p>
+          <dl class="readouts inline">
+            <div><dt>Motor</dt><dd id="probe-servo-servo-status">Waiting for driver</dd></div>
+            <div><dt>From top</dt><dd id="probe-servo-home-travel">—</dd></div>
+            <div><dt>Shaft</dt><dd id="probe-servo-servo-position">—</dd></div>
+          </dl>
+        </div>
+        <section class="set-card card-inline">
+          <h4><span class="step">1</span>Connect</h4>
+          <button id="probe-servo-take-control" type="button" class="primary">Take control</button>
+          <label class="field field-inline grow"><span class="field-name">Motor</span><select id="probe-servo-servo-id"><option value="">Scanning for motors…</option></select></label>
+          <div class="btn-row"><button type="button" id="probe-servo-select-id">Use this motor</button><button type="button" id="probe-servo-reconnect" class="quiet">Reconnect</button></div>
+          <p id="probe-servo-calibration-access" class="meta span-row" role="status"></p>
+        </section>
+        <div class="panel-grid cols-2">
+          <section class="set-card">
+            <header class="card-head"><h4>Probe motion <span class="tip" data-tip="Down and retract speeds apply to probe cycles and manual depth targets. The motor uses the nearest supported speed within its saved shaft speed limit."></span></h4></header>
+            <div class="fields-2">
+              <label class="field"><span class="field-name">Down speed <span class="unit">mm/s</span></span><input id="probe-down-speed" type="number" min="0" step="any" data-positive required readonly></label>
+              <label class="field"><span class="field-name">Retract speed <span class="unit">mm/s</span></span><input id="probe-retract-speed" type="number" min="0" step="any" data-positive required readonly></label>
+            </div>
+            <label class="field"><span class="field-name">Automatic home load <span class="unit">%</span> <span class="tip" data-tip="During automatic homing, the probe retracts to the top and sets zero at this motor load."></span></span><input id="probe-servo-home-load" type="number" min="10" max="60" step="any" required readonly></label>
+            <div class="card-actions"><button id="probe-stroke-save" type="button" class="primary" disabled>Save on car</button></div>
+            <p id="probe-stroke-status" class="status-msg" role="status">Waiting for car settings.</p>
+            <p id="probe-servo-home-status" class="meta" role="status">Waiting for probe encoder</p>
+          </section>
+          <section class="set-card">
+            <header class="card-head"><h4><span class="step">2</span>Save the deepest point <span class="tip" data-tip="Jog down to the deepest safe point, measure from the top, enter it and save."></span></h4></header>
+            <div class="hold-row">
+              <button type="button" id="probe-servo-jog-left">↓ Hold down</button>
+              <button type="button" id="probe-servo-jog-right">↑ Hold up</button>
+            </div>
+            <p id="probe-servo-jog-status" class="arm-jog-status status-msg" role="status">Jogging disabled</p>
+            <div class="fields-2">
+              <label class="field"><span class="field-name">Jog speed <span class="unit">°/s</span></span><input id="probe-servo-jog-speed" type="number" step="any" value="50" required></label>
+              <label class="field"><span class="field-name">Depth from top <span class="unit">mm</span></span><input id="probe-servo-max-extension" type="number" min="0.1" max="10000" step="any" required></label>
+            </div>
+            <div class="card-actions"><button id="probe-servo-save-extension" type="button" class="primary">Save as deepest point</button><p id="probe-servo-extension-status" class="meta" role="status">Deepest point not saved</p></div>
+          </section>
+        </div>
+        <details class="set-more"><summary>Direction and travel mode</summary>
+          <div class="set-more-body">
+            <label class="check"><input id="probe-servo-reverse" type="checkbox" disabled> Reverse probe direction <span class="tip" data-tip="Saved on the car. Changing it clears home."></span></label>
+            <div class="inline-fields">
+              <p id="probe-servo-position-mode" class="status-msg grow" role="status">Select the probe motor to read its travel mode</p>
+              <button type="button" id="probe-servo-enable-multiturn" data-tip="Needs ArbotiX firmware v2 and the motor off. Clears old presets, so home again afterwards.">Enable multi-turn travel</button>
+            </div>
+          </div>
+        </details>
+        <details class="set-more"><summary>Speed and acceleration</summary>
+          <div class="set-more-body">
+            <div class="inline-fields">
+              <label class="field"><span class="field-name">Top speed <span class="unit">°/s</span></span><input id="probe-servo-max-speed" type="number" min="0.684" max="699.732" step="any" required></label>
+              <label class="field"><span class="field-name">Acceleration <span class="unit">°/s²</span></span><input id="probe-servo-acceleration" type="number" min="8.583" max="2180.082" step="any" required></label>
+              <button type="button" id="probe-servo-apply-motion">Save</button>
+            </div>
+          </div>
+        </details>
+        <details id="probe-servo-diagnostics" class="set-more"><summary>Motor readings</summary>
+          <div class="set-more-body diag-grid">
+            <div class="diag-col">
+              <table class="set-table kv" id="probe-servo-telemetry"><tbody>
+                <tr><th scope="row">Goal position</th><td id="probe-servo-goal">—</td></tr>
+                <tr><th scope="row">Torque on</th><td id="probe-servo-torque">—</td></tr>
+                <tr><th scope="row">Estimated load</th><td id="probe-servo-load">—</td></tr>
+                <tr><th scope="row">Torque limit</th><td id="probe-servo-torque-limit">—</td></tr>
+                <tr><th scope="row">Max torque setting</th><td id="probe-servo-max-torque">—</td></tr>
+                <tr><th scope="row">Current</th><td id="probe-servo-current">—</td></tr>
+                <tr><th scope="row">Speed / limit</th><td id="probe-servo-speed">—</td></tr>
+                <tr><th scope="row">Moving</th><td id="probe-servo-moving">—</td></tr>
+                <tr><th scope="row">Voltage / temperature</th><td id="probe-servo-power">—</td></tr>
+                <tr><th scope="row">Model / firmware</th><td id="probe-servo-model">—</td></tr>
+                <tr><th scope="row">PX4 permission</th><td id="probe-servo-px4">—</td></tr>
+              </tbody></table>
+              <label class="field" for="probe-servo-position-slider"><span class="field-name">Shaft angle target</span><output id="probe-servo-position-label">—</output></label>
+              <input id="probe-servo-position-slider" type="range" min="0" max="4095" step="1" value="0" disabled>
+            </div>
+            <div class="diag-chart">
+              <p class="field-name">Estimated load · last 60 s <span class="tip" data-tip="The motor's own estimate, not a measured force."></span></p>
+              <div class="servo-load-chart"><canvas id="probe-servo-load-history" aria-label="Signed estimated servo load history" role="img"></canvas></div>
+              <p id="probe-servo-servo-details" class="meta"></p>
+            </div>
+          </div>
+        </details>
+      </section>
+
+      <section id="settings-marking" class="settings-panel" role="tabpanel" data-settings-panel="marking" hidden>
+        <header class="panel-head">
+          <h3>Marking <span class="tip" data-tip="The pump uses MAVLink AUX4, PMB3 misc0, PCA9685 CH5 (Actuator_Set1). Percent is the commanded output range. Actual duty depends on the PX4 channel configuration."></span></h3>
+          <div class="panel-tools"><button type="button" id="marking-take-control" class="quiet">Take control</button></div>
+        </header>
+        <div class="status-bar">
+          <p id="marking-status" class="status-msg" role="status">Waiting for car settings</p>
+          <dl class="readouts inline"><div><dt>Commanded output</dt><dd id="marking-output">—</dd></div></dl>
+        </div>
+        <div class="panel-grid cols-2">
+          <section class="set-card">
+            <header class="card-head"><h4>Timed shot</h4></header>
+            <label class="field"><span class="field-name">Duration <span class="unit">s</span></span><input id="marking-duration" type="number" min="0.1" max="10" step="any" required></label>
+            <label class="field"><span class="field-name">Idle output <span class="unit">%</span> <span class="tip" data-tip="Applied while ROS has control and PX4 is armed. Loss of permission or command heartbeat sends 0%."></span></span><input id="marking-idle" type="number" min="0" max="100" step="any" required></label>
+            <label class="field"><span class="field-name">Shot output <span class="unit">%</span></span><input id="marking-active" type="number" min="0" max="100" step="any" required></label>
+          </section>
+          <section class="set-card">
+            <header class="card-head"><h4>Manual test <span class="tip" data-tip="Hold to send the test output. Release to return to idle. Manual tests do not add a mission mark."></span></h4></header>
+            <label class="field"><span class="field-name">Test output <span class="unit">%</span></span><input id="marking-manual" type="number" min="0" max="100" step="any" required></label>
+            <div class="card-actions"><button id="marking-hold" type="button" disabled>Hold to test</button></div>
+          </section>
+          <section class="set-card span-all card-inline">
+            <h4>Car settings</h4><p id="marking-feedback" class="status-msg" role="status"></p>
+            <div class="btn-row"><button id="marking-save" type="button" class="primary" disabled>Save on car</button></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="settings-contact" class="settings-panel" role="tabpanel" data-settings-panel="contact" hidden>
+        <header class="panel-head">
+          <h3>Probe contact <span class="tip" data-tip="The probe uses this filtered ADC input to detect contact during descent. Test the response with the probe clear, then press the sensor and set the limit between the two readings."></span></h3>
+          <div class="panel-tools"><button type="button" class="quiet" data-goto-settings="adc">Sensor board →</button></div>
+        </header>
+        <div class="status-bar"><p id="adc-trigger-state" class="status-msg" role="status">Waiting for contact readings</p></div>
+        <div class="panel-grid cols-wide">
+          <section class="set-card">
+            <header class="card-head"><h4>Live contact signal</h4><output class="head-value" id="contact-live-volts">—</output></header>
+            <div class="metal-chart-container"><canvas id="contact-history" role="img" aria-label="Filtered contact sensor voltage and contact limit over the last 30 seconds"></canvas></div>
+            <p id="contact-chart-error" class="error-line" role="status" hidden></p>
+            <p id="contact-draft-preview" class="meta" hidden></p>
+          </section>
+          <section class="set-card">
+            <header class="card-head"><h4>Contact calibration</h4></header>
+            <label class="field"><span class="field-name">Sensor input</span><select id="adc-trigger-mux"></select></label>
+            <label class="check"><input id="adc-trigger-enabled" type="checkbox"> Detect contact</label>
+            <div class="fields-2">
+              <label class="field"><span class="field-name">Contact when</span><select id="probe-contact-direction"><option value="above">Above</option><option value="below">Below</option></select></label>
+              <label class="field"><span class="field-name">Limit <span class="unit">V</span></span><input id="probe-contact-volts" type="number" step="any" required></label>
+              <label class="field"><span class="field-name">Hysteresis <span class="unit">V</span><span class="tip" data-tip="After contact, the filtered voltage must cross the clear level shown above. Use 0 V to clear at the contact limit."></span></span><input id="adc-trigger-hysteresis" type="number" min="0" step="any" required></label>
+              <label class="field"><span class="field-name">Debounce <span class="unit">ms</span><span class="tip" data-tip="Time the voltage must remain past the limit before contact changes."></span></span><input id="adc-trigger-debounce" type="number" min="0" max="10000" step="any" required></label>
+            </div>
+            <div class="card-actions"><button id="probe-contact-save" type="button" class="primary" disabled>Save contact settings</button><button type="button" class="quiet" id="contact-revert">Undo edits</button></div>
+            <p id="probe-contact-feedback" class="status-msg" role="status"></p>
+          </section>
+        </div>
+      </section>
+
+      <!-- ====================================================== Metal detector -->
+      <section id="settings-detector" class="settings-panel" role="tabpanel" data-settings-panel="detector" hidden>
+        <header class="panel-head">
+          <h3>Metal detector <span class="tip" data-tip="Set the filtered detector voltage with the coil clear and over a test target."></span></h3>
+          <div class="panel-tools"><span id="metal-status" class="badge neutral">NO TELEMETRY</span></div>
+        </header>
+        <div class="status-bar">
+          <p id="metal-feedback" class="status-msg" role="status">Waiting for detector</p>
+          <dl class="readouts inline">
+            <div><dt>Filtered</dt><dd id="metal-voltage">— V</dd></div>
+            <div><dt>Rate</dt><dd id="metal-rate">-- Hz</dd></div>
+            <div><dt>Age</dt><dd id="metal-age">-- ms</dd></div>
+          </dl>
+        </div>
+        <div class="panel-grid cols-wide">
+          <section class="set-card">
+            <header class="card-head"><h4>Live signal</h4>
+              <div class="card-tools">
+                <label class="check" data-tip="Fit two minutes of measured signal. Switch off to see the full voltage range and all calibration levels."><input id="metal-autoscale" type="checkbox" checked> Auto scale</label>
+                <select id="metal-time-range" aria-label="Time range"><option value="30" selected>30 s</option><option value="60">60 s</option><option value="120">120 s</option></select>
+              </div>
+            </header>
+            <div class="metal-chart-container"><canvas id="metal-history" role="img" aria-label="Filtered metal detector voltage over the last 30 seconds"></canvas></div>
+            <p id="metal-range" class="meta">No readings</p>
+            <label class="field"><span class="field-name">Smoothing <span class="unit">ms</span> <span class="tip" data-tip="0 turns smoothing off. A longer time reduces noise and delays the response. Preview the dashed line before saving. This filter also applies to probe contact."></span></span>
+              <span class="input-with-btn"><input id="metal-smoothing" type="number" min="0" max="2000" step="1" required><button type="button" id="metal-smoothing-save" disabled>Save smoothing</button></span></label>
+            <p id="metal-smoothing-feedback" class="status-msg" role="status">Waiting for ADC settings.</p>
+          </section>
+          <section class="set-card">
+            <header class="card-head"><h4>Calibrate <span class="tip" data-tip="Levels are saved on the car and used by every operator."></span></h4></header>
+            <label class="field"><span class="field-name">Sensor input</span>
+              <span class="input-with-btn"><select id="metal-adc-input"></select><button type="button" id="metal-adc-save" disabled>Save input</button></span></label>
+            <p id="metal-adc-feedback" class="status-msg" role="status"></p>
+            <label class="field"><span class="field-name"><span class="step">1</span>Baseline <span class="unit">V</span> <span class="tip" data-tip="Hold the coil away from metal, then press Measure."></span></span>
+              <span class="input-with-btn"><input id="metal-baseline" type="number" min="0" max="5" step="any"><button id="metal-zero" type="button">Measure</button></span>
+            </label>
+            <label class="field"><span class="field-name"><span class="step">2</span>Mine level <span class="unit">V</span> <span class="tip" data-tip="Hold the coil over a test target and enter the voltage it reads. This is 100% signal."></span></span>
+              <input id="metal-full" type="number" min="0" max="5" step="any">
+            </label>
+            <div class="card-actions">
+              <button id="metal-apply" type="button" class="primary">Save</button>
+              <button id="metal-control" type="button" class="quiet">Take control</button>
+              <button id="metal-reset" type="button" class="quiet push-right" data-tip="Go back to the values the car started with.">Reset</button>
+            </div>
+            <p id="metal-voltage-note" class="meta">Detector input voltage.</p>
+            <label class="field"><span class="field-name">Confirmation passes <span class="tip" data-tip="The car counts each sweep across the target as one pass. Saved for the next confirmation."></span></span>
+              <select id="confirm-passes" disabled><option>2</option><option>4</option><option>6</option><option>8</option></select></label>
+            <p id="confirm-passes-feedback" class="status-msg" role="status"></p>
+            <div class="kv-row">
+              <span class="field-name">Search alert <span class="tip" data-tip="Warns the operator during the search. Change it on the main screen under Mission → Sweep and alert. Saved on the car."></span></span>
+              <output id="metal-alert-level">— V</output>
+            </div>
+          </section>
+        </div>
+        <details class="set-more"><summary>Detector readings</summary>
+          <div class="set-more-body">
+            <dl class="kv-list">
+              <dt>Unfiltered voltage</dt><dd id="metal-raw">— V</dd>
+              <dt>Filtered voltage from baseline</dt><dd id="metal-response">— V</dd>
+              <dt>Port</dt><dd id="metal-port">--</dd>
+              <dt>Packets / rejected</dt><dd id="metal-counts">--</dd>
+              <dt>Sequence / uptime</dt><dd id="metal-sequence">--</dd>
+              <dt>Driver</dt><dd id="metal-error">--</dd>
+            </dl>
+            <div class="btn-row"><label class="check"><input id="metal-debug-live" type="checkbox" checked> Live voltage log</label><button id="metal-export" type="button" class="quiet push-right">Export CSV</button></div>
+            <textarea id="metal-log" class="code-box" rows="5" readonly spellcheck="false" aria-label="Recent detector voltage readings"></textarea>
+          </div>
+        </details>
+        <details class="set-more"><summary>Applied calibration</summary>
+          <div class="set-more-body"><textarea id="metal-launch" class="code-box" rows="4" readonly spellcheck="false" aria-label="Applied detector calibration in volts"></textarea></div>
+        </details>
+      </section>
+
+      <section id="settings-gnss" class="settings-panel" role="tabpanel" data-settings-panel="gnss" hidden>
+        <header class="panel-head">
+          <h3>GNSS <span class="tip" data-tip="The car records the receiver position and its estimated horizontal error. OpenStreetMap tiles need an internet connection."></span></h3>
+          <div class="panel-tools"><span id="gnss-fix-label" class="badge neutral">WAITING</span></div>
+        </header>
+        <div class="status-bar"><p id="gnss-feedback" class="status-msg" role="status"></p>
+          <button type="button" id="gnss-save" class="primary" disabled>Save changes</button>
+        </div>
+        <div class="panel-grid cols-2">
+          <section class="set-card">
+            <header class="card-head"><h4>Ground mark position <span class="tip" data-tip="The pump runs immediately. While the car is stationary it waits for a better fix, then keeps the best available position with its error."></span></h4></header>
+            <div class="fields-2">
+              <label class="field"><span class="field-name">Maximum wait <span class="unit">s</span></span><input type="number" id="gnss-wait" min="0" max="120" step="any" required></label>
+              <label class="field"><span class="field-name">Target accuracy <span class="unit">m</span></span><input type="number" id="gnss-target" min="0.01" max="100" step="any" required></label>
+            </div>
+          </section>
+          <section class="set-card">
+            <header class="card-head"><h4>Receiver</h4></header>
+            <dl class="readouts"><div class="span-all"><dt>Source</dt><dd id="gnss-device">—</dd></div><div><dt>Satellites</dt><dd id="gnss-sats">—</dd></div>
+              <div><dt>Latitude</dt><dd id="gnss-lat">—</dd></div><div><dt>Longitude</dt><dd id="gnss-lon">—</dd></div>
+              <div><dt>Estimated error</dt><dd id="gnss-accuracy">—</dd></div></dl>
+          </section>
+          <section class="set-card span-all">
+            <header class="card-head"><h4>Field map <span class="tip" data-tip="The dot shows the receiver, the circle shows its estimated horizontal error, and the line shows its recent trail. Select a ground mark to see its accuracy."></span></h4>
+              <button id="gnss-preview-follow" type="button" class="quiet" aria-pressed="true" disabled>Follow</button>
+            </header>
+            <div id="gnss-preview" class="field-map" aria-label="GNSS Setup field map"><span id="gnss-preview-empty" class="map-empty meta">Waiting for GNSS position</span></div>
+            <p id="gnss-preview-status" class="meta">Waiting for field recorder</p>
+          </section>
+        </div>
+      </section>
+
+      <!-- ======================================================== Sensor board -->
+      <section id="settings-adc" class="settings-panel" role="tabpanel" data-settings-panel="adc" hidden>
+        <header class="panel-head">
+          <h3>Sensor board <span class="tip" data-tip="The ADS1115 samples the enabled inputs. Assign sensors on their calibration tabs."></span></h3>
+          <div class="panel-tools"><span id="adc-status" class="badge neutral">WAITING</span></div>
+        </header>
+        <div class="status-bar">
+          <p id="adc-feedback" class="status-msg" role="status"></p>
+          <div class="btn-row">
+            <button type="button" id="adc-save" class="quiet" data-tip="Download these settings as a file">Export</button>
+            <button type="button" id="adc-import" class="quiet" data-tip="Load settings from a file (not saved until you press Save)">Import</button>
+            <input type="file" id="adc-file" accept=".json,application/json" hidden>
+            <span class="action-gap"></span>
+            <button type="button" id="adc-revert" class="quiet">Undo edits</button>
+            <button type="button" id="adc-apply" class="primary">Save changes</button>
+          </div>
+        </div>
+        <p id="adc-error" class="error-line" role="alert"></p>
+        <div class="panel-grid">
+          <section class="set-card span-all">
+            <header class="card-head"><h4>Inputs <span class="tip" data-tip="Enable the inputs you use. The multiplier and offset calibrate the scaled ROS signal. The readings below show filtered sensor voltage."></span></h4></header>
+            <div class="table-wrap"><table class="set-table"><thead><tr><th>On</th><th>Input</th><th>Multiplier</th><th>Offset</th><th>Used for</th></tr></thead><tbody id="adc-input-settings"></tbody></table></div>
+            <div class="btn-row"><button type="button" class="quiet" data-goto-settings="contact">Probe contact →</button><button type="button" class="quiet" data-goto-settings="detector">Metal detector →</button></div>
+          </section>
+          <section class="set-card span-all">
+            <header class="card-head"><h4>Live readings</h4>
+              <div class="card-tools">
+                <select id="adc-quantity" aria-label="Voltage traces"><option value="filtered_volts">Filtered voltage (V)</option><option value="comparison">Compare unfiltered voltage (V)</option></select>
+                <select id="adc-window" aria-label="History"><option value="10">10 s</option><option value="30" selected>30 s</option><option value="60">60 s</option></select>
+                <button type="button" id="adc-csv" class="quiet" data-tip="Exports filtered voltage. The comparison view also includes unfiltered voltage.">Export CSV</button>
+              </div>
+            </header>
+            <label class="field"><span class="field-name">Low-pass time constant <span class="unit">ms</span> <span class="tip" data-tip="0 turns filtering off. Larger values smooth noise and delay the detector and probe response. Apply &amp; save to use this value on the car."></span></span><input data-adc-field="filter_ms" type="number" min="0" max="2000" step="1" required></label>
+            <p id="adc-filter-status" class="meta" role="status"></p>
+            <div class="adc-chart"><canvas id="adc-history" aria-label="ADS1115 input voltages over time"></canvas></div>
+            <p id="adc-chart-error" class="error-line" role="status" hidden></p>
+            <p id="adc-rate" class="meta"></p>
+            <div class="table-wrap"><table class="set-table"><thead><tr><th>Input</th><th>Filtered voltage (V)</th><th>Filtered min / max / mean (V)</th><th>Status</th></tr></thead><tbody id="adc-readings"></tbody></table></div>
+          </section>
+        </div>
+        <details class="set-more"><summary>Chip settings <span class="tip" data-tip="Usually bus 1, address 0x48. The data rate is shared by all inputs. Pick a range that doesn't clip; inputs must stay between GND and VDD whatever the range."></span></summary>
+          <div class="set-more-body">
+            <div class="fields-3">
+              <label class="field"><span class="field-name">I²C bus</span><input data-adc-field="bus" type="number" min="0" max="255" required></label>
+              <label class="field"><span class="field-name">Address</span><select data-adc-field="address"><option value="72">0x48 · ADDR to GND</option><option value="73">0x49 · ADDR to VDD</option><option value="74">0x4A · ADDR to SDA</option><option value="75">0x4B · ADDR to SCL</option></select></label>
+              <label class="field"><span class="field-name">Data rate</span><select data-adc-field="rate"></select></label>
+              <label class="field"><span class="field-name">Input range</span><select data-adc-field="pga"></select></label>
+              <label class="field"><span class="field-name">Mode</span><select data-adc-field="mode"><option value="single">Scan inputs in turn</option><option value="continuous">Continuous (one input)</option></select></label>
+              <label class="field"><span class="field-name">Pause between scans <span class="unit">ms</span></span><input data-adc-field="interval_ms" type="number" min="0" max="60000" required></label>
+            </div>
+            <p class="meta">Resolution: <output id="adc-resolution"></output></p>
+          </div>
+        </details>
+        <details class="set-more"><summary>ALERT / RDY pin <span class="tip" data-tip="The hardware comparator uses the unfiltered voltage. Changing the input range preserves the entered thresholds. Saving rounds to the nearest available voltage. Reading data clears a latched alert."></span></summary>
+          <div class="set-more-body">
+            <div class="fields-3">
+              <label class="field"><span class="field-name">Function</span><select data-adc-field="alert"><option value="disabled">Off</option><option value="traditional">Comparator</option><option value="window">Window comparator</option><option value="ready">Conversion ready</option></select></label>
+              <label class="field"><span class="field-name">Polarity</span><select data-adc-field="polarity"><option value="0">Active low</option><option value="1">Active high</option></select></label>
+              <label class="field"><span class="field-name">Trigger after</span><select data-adc-field="queue"><option value="1">1 conversion</option><option value="2">2 conversions</option><option value="4">4 conversions</option></select></label>
+              <label class="field"><span class="field-name">Low threshold <span class="unit">V</span></span><input data-adc-field="low" type="number" step="any" required><output id="adc-low-volts" class="meta"></output></label>
+              <label class="field"><span class="field-name">High threshold <span class="unit">V</span></span><input data-adc-field="high" type="number" step="any" required><output id="adc-high-volts" class="meta"></output></label>
+              <label class="check"><input data-adc-field="latch" type="checkbox"> Latch until read</label>
+            </div>
+          </div>
+        </details>
+        <details class="set-more"><summary>Register readback</summary>
+          <div class="set-more-body"><pre id="adc-registers" class="code-box"></pre></div>
+        </details>
+      </section>
+
+      </div>
+    </form>
+  </dialog>
+
+  <script>if (/[?&]mock=1/.test(location.search)) document.write('<script src="assets/mock-car.js"><\/script>');</script>
+  <script src="assets/chart-4.4.8.umd.js"></script>
+  <script src="assets/actuator-settings.js"></script>
+  <script src="assets/app.js"></script>
+  <script src="assets/adc.js"></script>
+  <script src="assets/marking.js"></script>
+  <script src="assets/camera-config.js"></script>
+  <script src="assets/leaflet.js"></script>
+  <script src="assets/field-map.js"></script>
+  <script src="assets/layout.js"></script>
+</body>
+</html>

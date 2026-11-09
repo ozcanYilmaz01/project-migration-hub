@@ -1,0 +1,17 @@
+# Per-role server validates supported operations and all interlocks.
+string operation
+# Arm position uses encoder ticks, angle uses degrees; probe target uses millimetres.
+float64 target
+# Arm speed in degrees/second; probe target/cycle speed in mm/second. Zero retains the configured speed.
+float64 speed
+float64 load_percent
+---
+bool success
+string message
+bool contact
+float64 contact_depth_mm
+---
+string state
+# Feedback position is the raw encoder position in ticks.
+float64 position
+string message
