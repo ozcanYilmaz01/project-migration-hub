@@ -809,5 +809,4 @@ body[data-search-alert=active] #mode-align-btn:not(:disabled) { border-color: va
 .camera-stage[data-probe-size=large] > .probe-camera { width: 50%; height: 50%; cursor: zoom-out; }
 .camera-stage > .probe-camera:has(.camera-empty:not([hidden]):not(.hidden)) { display: none; }
 .camera-stage:not([data-probe-size=large]) > .probe-camera :is(.camera-label, .aux-camera-latency) { display: none; }
-.camera-stage > .forward-camera :is(.speed-readout, .camera-latency, .input-lock) { display: revert; }
 #camera-swap { display: none !important; }
