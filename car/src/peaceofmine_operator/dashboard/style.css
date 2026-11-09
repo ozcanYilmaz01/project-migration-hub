@@ -797,3 +797,17 @@ body[data-search-alert=active] #mode-align-btn:not(:disabled) { border-color: va
 .workspace.detector-expanded .pane-detector > :not(.detector-trend) { display: none; }
 .workspace.detector-expanded .pane-detector { grid-template: "trend" minmax(0, 1fr) / minmax(0, 1fr); }
 .workspace.detector-expanded .pane-detector > .detector-trend { margin: 0; padding: 0; border: 0; }
+
+/* Probe camera as a corner thumbnail over the front camera (click to enlarge). */
+.camera-stage, .camera-stage[data-focus=probe] { grid-template-columns: 1fr; grid-template-rows: 1fr; grid-template-areas: "stage"; gap: 0; }
+.camera-stage > .forward-camera, .camera-stage > .probe-camera { grid-area: stage; }
+.camera-stage > .probe-camera {
+  z-index: 4; align-self: end; justify-self: end; margin: var(--s2);
+  width: 160px; height: 90px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm);
+  cursor: zoom-in; transition: width .15s ease, height .15s ease;
+}
+.camera-stage[data-probe-size=large] > .probe-camera { width: 50%; height: 50%; cursor: zoom-out; }
+.camera-stage > .probe-camera:has(.camera-empty:not([hidden]):not(.hidden)) { display: none; }
+.camera-stage:not([data-probe-size=large]) > .probe-camera :is(.camera-label, .aux-camera-latency) { display: none; }
+.camera-stage > .forward-camera :is(.speed-readout, .camera-latency, .input-lock) { display: revert; }
+#camera-swap { display: none !important; }
