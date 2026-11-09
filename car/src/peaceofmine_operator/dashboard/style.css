@@ -860,3 +860,22 @@ body[data-search-alert=active] #mode-align-btn:not(:disabled) { border-color: va
 .key-hint [data-key=w] { grid-area: w; } .key-hint [data-key=a] { grid-area: a; }
 .key-hint [data-key=s] { grid-area: s; } .key-hint [data-key=d] { grid-area: d; }
 .key-hint kbd[data-on=true] { background: var(--accent); color: var(--on-accent); }
+
+/* ================================================= Frozen / link lost === */
+.video-frozen {
+  position: absolute; inset: 0; z-index: 3; display: grid; place-items: center; pointer-events: none;
+  background: var(--overlay);
+}
+.video-frozen strong {
+  padding: var(--s3) var(--s4); border-radius: var(--radius); background: var(--danger); color: var(--on-danger);
+  font-size: var(--fs-xl); font-weight: 700;
+}
+#camera-panel.is-frozen :is(.camera-feed, canvas) { filter: grayscale(1) brightness(.45); }
+.link-lost {
+  display: flex; align-items: center; justify-content: center; gap: var(--s3);
+  margin: 0 var(--s2); padding: var(--s2) var(--s3); min-height: var(--control-h);
+  border-radius: var(--radius-sm); background: var(--danger); color: var(--on-danger); font-size: var(--fs-md);
+}
+.link-lost span { font-family: var(--mono); font-size: var(--fs-sm); }
+/* Drive and mission controls grey out while the link is down (STOP stays live). */
+body[data-link=lost] :is(.drive-bar, #mission-steps, .mission-progress, #take-control, #probe-live) { opacity: .4; pointer-events: none; filter: grayscale(1); }
