@@ -168,6 +168,67 @@
     el.dataset.ok = String(connected && remote && owner);
   }
 
+  /* ------------------------------------------------- Guided mission flow --- */
+  // Shows only the current step. Reads the enabled state app.js sets; sends nothing.
+  const steps = ['sweep', 'align', 'probe', 'mark'];
+  const explain = {
+    sweep: "Drive slowly. The arm swings the detector and we'll alert you when it finds metal.",
+    align: "Stop over the hit. The arm sweeps it a few more times to make sure it's real.",
+    probe: "The probe gently pushes into the ground at a few spots around the hit.",
+    mark: "The pump sprays a mark on the ground so the spot can be found again.",
+  };
+  let pickedStep = null, autoStep = null, hitSeen = false, lastSweep = false;
+  function sweepRestarted() { // sweeping again after a hit means the operator went back to searching
+    const on = !!state.detector?.sweep_enabled, restarted = on && !lastSweep;
+    lastSweep = on;
+    return restarted && !document.body.dataset.searchAlert;
+  }
+  for (const dot of document.querySelectorAll('[data-mission-step]'))
+    dot.addEventListener('click', () => { pickedStep = dot.dataset.missionStep; if (pickedStep === 'sweep') hitSeen = false; renderMission(); });
+  $('mission-open-settings').addEventListener('click', () => $('settings').click());
+  function missionAutoStep() {
+    const phase = state.inspection?.phase || 'IDLE';
+    if (phase === 'COMPLETE') return 'mark';
+    if (state.probe?.cycle_active || ['CONFIRMED', 'PROBING'].includes(phase)) return 'probe';
+    if (phase === 'CONFIRMING') return 'align';
+    // A search alert (set by app.js on <body>) means metal was found: move on to Check.
+    if (sweepRestarted()) hitSeen = false;
+    if (document.body.dataset.searchAlert) hitSeen = true;
+    return hitSeen ? 'align' : 'sweep';
+  }
+  function missionSentence(step, btn) {
+    const pill = $(`mode-${step}-pill`).textContent.trim();
+    if (btn.disabled) {
+      const reason = (btn.title || '').trim() || 'Not available yet.';
+      return {text: reason, kind: 'blocked', settings: /set ?up|calibrat|configure|settings/i.test(reason)};
+    }
+    if (step === 'sweep') return state.detector?.sweep_enabled ? {text: 'Searching… press the button again to stop.', kind: 'running'} : {text: 'Ready when you are.', kind: 'ready'};
+    if (step === 'align') return state.inspection?.phase === 'CONFIRMING' ? {text: `Checking pass ${pill}…`, kind: 'running'} : {text: 'Ready. Stop the car over the hit first.', kind: 'ready'};
+    if (step === 'probe') return pill === 'RUNNING' ? {text: 'Probing… keep the car still.', kind: 'running'} : {text: 'Ready. Keep the car still while it probes.', kind: 'ready'};
+    return pill === 'COMMAND ACTIVE' ? {text: 'Marking…', kind: 'running'} : {text: `Ready. The pump runs for ${pill.replace(' s', ' seconds')}.`, kind: 'ready'};
+  }
+  function renderMission() {
+    const auto = missionAutoStep();
+    if (auto !== autoStep) { autoStep = auto; pickedStep = null; } // a finished step moves the flow on
+    const current = pickedStep || auto;
+    const list = $('mission-steps');
+    if (list.dataset.current !== current) list.dataset.current = current;
+    const index = steps.indexOf(current), autoIndex = steps.indexOf(auto);
+    for (const dot of document.querySelectorAll('[data-mission-step]')) {
+      const i = steps.indexOf(dot.dataset.missionStep), li = dot.parentElement;
+      li.dataset.current = String(i === index);
+      li.dataset.done = String(i < autoIndex);
+      dot.setAttribute('aria-current', i === index ? 'step' : 'false');
+    }
+    const btn = $(`mode-${current}-btn`);
+    if ($('mission-explain').textContent !== explain[current]) $('mission-explain').textContent = explain[current];
+    const next = missionSentence(current, btn);
+    const out = $('mission-next');
+    if ($('mission-next-text').textContent !== next.text) $('mission-next-text').textContent = next.text;
+    out.dataset.kind = next.kind;
+    $('mission-open-settings').hidden = !next.settings;
+  }
+
   const fullTextIds = ['controller', 'controller-mapping', 'drive-block', 'drive-help', 'detector-detail', 'position', 'connection', 'ready-next'];
   function tick() {
     const next = missionStage();
@@ -185,6 +246,7 @@
     $('probe-camera-empty').hidden = probeCameraShown();
     renderChip();
     renderReady();
+    renderMission();
     // one-line status texts are cut with an ellipsis; keep the full text on hover
     for (const id of fullTextIds) { const el = $(id); if (el && el.title !== el.textContent) el.title = el.textContent; }
     for (const el of document.querySelectorAll('.readouts dd')) { if (el.title !== el.textContent) el.title = el.textContent; }

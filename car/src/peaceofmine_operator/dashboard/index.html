@@ -235,30 +235,36 @@
 
       <aside class="task-workbench mission" aria-labelledby="task-heading">
         <div class="section-head"><h2 id="task-heading">Mission</h2><button id="inspection-stop" type="button" class="quiet small" disabled>Stop scan</button></div>
+        <ol class="mission-progress" aria-label="Mission progress">
+          <li><button type="button" class="mission-dot" data-mission-step="sweep"><span class="mission-dot-num">1</span>Search</button></li>
+          <li><button type="button" class="mission-dot" data-mission-step="align"><span class="mission-dot-num">2</span>Check</button></li>
+          <li><button type="button" class="mission-dot" data-mission-step="probe"><span class="mission-dot-num">3</span>Probe</button></li>
+          <li><button type="button" class="mission-dot" data-mission-step="mark"><span class="mission-dot-num">4</span>Mark</button></li>
+        </ol>
         <nav class="workflow-actions" aria-label="Mission steps">
-          <div class="workflow-buttons">
-            <div class="operation-action">
+          <div class="workflow-buttons" id="mission-steps">
+            <div class="operation-action" data-step="sweep">
               <button id="mode-sweep-btn" type="button" class="mode-btn" title="Swing the detector coil while you drive">
                 <span class="mode-num">1</span><span class="mode-copy"><span class="mode-text">Search for metal</span><span class="mode-desc">Swing the coil while you drive</span></span>
                 <span id="mode-sweep-pill" class="badge neutral">OFF</span>
               </button>
               <small id="mode-sweep-help" class="step-note"></small>
             </div>
-            <div class="operation-action">
+            <div class="operation-action" data-step="align">
               <button id="mode-align-btn" type="button" class="mode-btn" disabled title="Confirm the hit with repeated sweeps">
                 <span class="mode-num">2</span><span class="mode-copy"><span class="mode-text">Check the spot</span><span class="mode-desc">Compare repeated sweeps over the hit</span></span>
                 <span id="mode-align-pill" class="badge neutral">WAITING</span>
               </button>
               <small id="mode-align-help" class="step-note"></small>
             </div>
-            <div class="operation-action">
+            <div class="operation-action" data-step="probe">
               <button id="mode-probe-btn" type="button" class="mode-btn" disabled title="Probe the planned positions around the confirmed bearing">
                 <span class="mode-num">3</span><span class="mode-copy"><span class="mode-text">Probe the ground</span><span class="mode-desc">Probe the planned positions around the hit</span></span>
                 <span id="mode-probe-pill" class="badge neutral">SETUP REQUIRED</span>
               </button>
               <small id="mode-probe-help" class="step-note"></small>
             </div>
-            <div class="operation-action">
+            <div class="operation-action" data-step="mark">
               <button id="mode-mark-btn" type="button" class="mode-btn" disabled title="Run a timed marking shot">
                 <span class="mode-num">4</span><span class="mode-copy"><span class="mode-text">Mark the spot</span><span class="mode-desc">Pump a mark onto the spot</span></span>
                 <span id="mode-mark-pill" class="badge neutral">WAITING</span>
@@ -266,6 +272,8 @@
               <small id="mode-mark-help" class="step-note"></small>
             </div>
           </div>
+          <p id="mission-explain" class="mission-explain"></p>
+          <p id="mission-next" class="mission-next" role="status" aria-live="polite"><span id="mission-next-text"></span> <button type="button" id="mission-open-settings" class="link-btn" hidden>→ Settings</button></p>
         </nav>
         <p id="operation-help" class="workflow-status" role="status">Connecting to the car…</p>
         <div id="inspection-panel" hidden><p id="inspection-status" hidden></p><progress id="inspection-progress" max="1" value="0" aria-label="Scan progress" hidden></progress><details class="inspection-results"><summary>Scan results</summary><ol id="inspection-points" aria-label="Probe scan results"></ol></details></div>
