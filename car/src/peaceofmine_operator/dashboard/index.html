@@ -25,14 +25,14 @@
       <div class="brand"><h1>PeaceOfMine</h1><span id="environment-label">Connecting</span></div>
       <div class="topbar-status" aria-label="Vehicle status">
         <div class="connection"><span id="connection-dot"></span><span id="connection">Connecting</span></div>
-        <span id="px4-arming" class="badge neutral" role="status" title="Waiting for MAVROS state">PX4 UNKNOWN</span>
-        <span id="rc-safety" class="badge neutral" title="PX4 safety status">RC UNKNOWN · LOCKED</span>
-        <button id="power-chip" type="button" class="power-chip" title="Battery · opens the Vehicle tab"><span id="power-chip-pct">—</span><span id="power-chip-w">— W</span></button>
-        <span id="control-owner" class="badge neutral">SPECTATING</span>
+        <span id="px4-arming" class="badge neutral" role="status" title="Waiting for MAVROS state">Car status unknown</span>
+        <span id="rc-safety" class="badge neutral" title="PX4 safety status">Remote: driving blocked</span>
+        <button id="power-chip" type="button" class="power-chip" title="Battery · opens the Car health tab"><span id="power-chip-pct">—</span><span id="power-chip-w">— W</span></button>
+        <span id="control-owner" class="badge neutral">Watching only</span>
       </div>
       <div class="topbar-actions">
-        <button id="settings" type="button" class="quiet">Setup</button>
-        <button id="take-control" type="button" class="primary">Take control</button>
+        <button id="settings" type="button" class="quiet">Settings</button>
+        <button id="take-control" type="button" class="primary">Start driving</button>
         <button id="stop-controls" type="button" class="danger" disabled>STOP</button>
       </div>
     </header>
@@ -70,18 +70,18 @@
           <select id="drive-control-source"><option value="keyboard">Keyboard (WASD)</option><option value="controller">Gamepad</option><option value="wheel">Steering wheel</option><option value="rc">RC through ROS</option></select>
         </label>
         <div class="drive-text input-state"><p id="controller">Choose an input</p><p id="controller-mapping"></p></div>
-        <div class="drive-text drive-feedback"><p id="drive-block">Take control when the RC allows driving.</p><p id="drive-help">Click the camera for WASD · Esc releases the keys · hold Space to sweep</p></div>
-        <span id="arm-state" class="badge neutral">DISARMED</span>
+        <div class="drive-text drive-feedback"><p id="drive-block">Start driving when the remote allows it.</p><p id="drive-help">Click the camera for WASD · Esc releases the keys · hold Space to sweep</p></div>
+        <span id="arm-state" class="badge neutral">Car locked</span>
         <button type="button" class="quiet" data-open-settings="input">Input setup</button>
       </div>
 
       <section class="dock" aria-label="Live data">
         <nav class="dock-tabs" role="tablist" aria-label="Live data views">
-          <button type="button" role="tab" class="dock-tab active" data-dock-tab="overview" aria-selected="true">Signal &amp; map</button>
+          <button type="button" role="tab" class="dock-tab active" data-dock-tab="overview" aria-selected="true">Map</button>
           <button type="button" role="tab" class="dock-tab" data-dock-tab="detector" aria-selected="false">Detector</button>
           <button type="button" role="tab" class="dock-tab" data-dock-tab="probe" aria-selected="false">Probe</button>
-          <button type="button" role="tab" class="dock-tab" data-dock-tab="log" aria-selected="false">Mission log <span id="mission-record-count" class="tab-count">0 entries</span></button>
-          <button type="button" role="tab" class="dock-tab" data-dock-tab="drive" aria-selected="false">Vehicle</button>
+          <button type="button" role="tab" class="dock-tab" data-dock-tab="log" aria-selected="false">Found targets <span id="mission-record-count" class="tab-count">0 entries</span></button>
+          <button type="button" role="tab" class="dock-tab" data-dock-tab="drive" aria-selected="false">Car health</button>
         </nav>
 
         <div class="dock-pane pane-split pane-signal" data-dock-pane="overview" role="tabpanel">
@@ -165,7 +165,7 @@
         <div class="dock-pane pane-log" data-dock-pane="log" role="tabpanel" hidden>
           <section class="pane-section target-log-panel" aria-labelledby="target-log-heading">
             <div class="section-head">
-              <h2 id="target-log-heading">Mission log <span class="tip" data-tip="Saved on the car and shared with all viewers. A pump run does not prove a visible mark."></span></h2>
+              <h2 id="target-log-heading">Found targets <span class="tip" data-tip="Saved on the car and shared with all viewers. A pump run does not prove a visible mark."></span></h2>
               <span id="target-count" class="badge neutral">0 TARGETS</span>
               <div class="target-log-actions">
                 <button id="mark-target-btn" type="button" class="quiet" title="Save the car's position without running the pump">Log position</button>
@@ -231,28 +231,28 @@
           <div class="workflow-buttons">
             <div class="operation-action">
               <button id="mode-sweep-btn" type="button" class="mode-btn" title="Swing the detector coil while you drive">
-                <span class="mode-num">1</span><span class="mode-copy"><span class="mode-text">Search sweep</span><span class="mode-desc">Swing the coil while you drive</span></span>
+                <span class="mode-num">1</span><span class="mode-copy"><span class="mode-text">Search for metal</span><span class="mode-desc">Swing the coil while you drive</span></span>
                 <span id="mode-sweep-pill" class="badge neutral">OFF</span>
               </button>
               <small id="mode-sweep-help" class="step-note"></small>
             </div>
             <div class="operation-action">
               <button id="mode-align-btn" type="button" class="mode-btn" disabled title="Confirm the hit with repeated sweeps">
-                <span class="mode-num">2</span><span class="mode-copy"><span class="mode-text">Confirm arc</span><span class="mode-desc">Compare repeated sweeps over the hit</span></span>
+                <span class="mode-num">2</span><span class="mode-copy"><span class="mode-text">Check the spot</span><span class="mode-desc">Compare repeated sweeps over the hit</span></span>
                 <span id="mode-align-pill" class="badge neutral">WAITING</span>
               </button>
               <small id="mode-align-help" class="step-note"></small>
             </div>
             <div class="operation-action">
               <button id="mode-probe-btn" type="button" class="mode-btn" disabled title="Probe the planned positions around the confirmed bearing">
-                <span class="mode-num">3</span><span class="mode-copy"><span class="mode-text">Probe scan</span><span class="mode-desc">Probe the planned positions around the hit</span></span>
+                <span class="mode-num">3</span><span class="mode-copy"><span class="mode-text">Probe the ground</span><span class="mode-desc">Probe the planned positions around the hit</span></span>
                 <span id="mode-probe-pill" class="badge neutral">SETUP REQUIRED</span>
               </button>
               <small id="mode-probe-help" class="step-note"></small>
             </div>
             <div class="operation-action">
               <button id="mode-mark-btn" type="button" class="mode-btn" disabled title="Run a timed marking shot">
-                <span class="mode-num">4</span><span class="mode-copy"><span class="mode-text">Mark ground</span><span class="mode-desc">Pump a mark onto the spot</span></span>
+                <span class="mode-num">4</span><span class="mode-copy"><span class="mode-text">Mark the spot</span><span class="mode-desc">Pump a mark onto the spot</span></span>
                 <span id="mode-mark-pill" class="badge neutral">WAITING</span>
               </button>
               <small id="mode-mark-help" class="step-note"></small>
@@ -302,8 +302,8 @@
   <dialog id="settings-dialog" aria-labelledby="settings-title">
     <form method="dialog" class="setup">
       <header class="setup-head">
-        <h2 id="settings-title">Setup</h2>
-        <span id="setup-arming" class="badge neutral">PX4 UNKNOWN</span>
+        <h2 id="settings-title">Settings</h2>
+        <span id="setup-arming" class="badge neutral">Car status unknown</span>
         <span id="setup-owner" class="badge neutral">UNCLAIMED</span>
         <button value="close" formnovalidate class="quiet" aria-label="Close settings">Close</button>
       </header>
@@ -451,7 +451,7 @@
           <div class="panel-tools"><button type="button" id="arm-calibration-stop" class="danger">Stop · release motor</button></div>
         </header>
         <div class="status-bar">
-          <p id="arm-feedback" class="arm-feedback status-msg" role="status" aria-live="polite">Take control. The RC remote must allow motion.</p>
+          <p id="arm-feedback" class="arm-feedback status-msg" role="status" aria-live="polite">Start driving first. The remote must allow motion.</p>
           <dl class="readouts inline">
             <div><dt>Motor</dt><dd id="arm-servo-status">Waiting for driver</dd></div>
             <div><dt>Position</dt><dd id="arm-servo-position">—</dd></div>
@@ -459,7 +459,7 @@
         </div>
         <section class="set-card card-inline">
           <h4><span class="step">1</span>Connect</h4>
-          <button id="arm-take-control" type="button" class="primary">Take control</button>
+          <button id="arm-take-control" type="button" class="primary">Start driving</button>
           <label class="field field-inline grow"><span class="field-name">Motor</span><select id="arm-servo-id"><option value="">Scanning for motors…</option></select></label>
           <div class="btn-row"><button type="button" id="arm-select-id">Use this motor</button><button type="button" id="arm-reconnect" class="quiet">Reconnect</button></div>
           <p id="arm-calibration-access" class="meta span-row" role="status"></p>
@@ -556,7 +556,7 @@
           <div class="panel-tools"><button type="button" class="quiet" data-goto-settings="contact" data-tip="Contact input and voltage calibration">Probe contact →</button><button type="button" id="probe-servo-calibration-stop" class="danger">Stop · release motor</button></div>
         </header>
         <div class="status-bar">
-          <p id="probe-servo-feedback" class="arm-feedback status-msg" role="status" aria-live="polite">Take control. The RC remote must allow motion.</p>
+          <p id="probe-servo-feedback" class="arm-feedback status-msg" role="status" aria-live="polite">Start driving first. The remote must allow motion.</p>
           <dl class="readouts inline">
             <div><dt>Motor</dt><dd id="probe-servo-servo-status">Waiting for driver</dd></div>
             <div><dt>From top</dt><dd id="probe-servo-home-travel">—</dd></div>
@@ -565,7 +565,7 @@
         </div>
         <section class="set-card card-inline">
           <h4><span class="step">1</span>Connect</h4>
-          <button id="probe-servo-take-control" type="button" class="primary">Take control</button>
+          <button id="probe-servo-take-control" type="button" class="primary">Start driving</button>
           <label class="field field-inline grow"><span class="field-name">Motor</span><select id="probe-servo-servo-id"><option value="">Scanning for motors…</option></select></label>
           <div class="btn-row"><button type="button" id="probe-servo-select-id">Use this motor</button><button type="button" id="probe-servo-reconnect" class="quiet">Reconnect</button></div>
           <p id="probe-servo-calibration-access" class="meta span-row" role="status"></p>
@@ -645,7 +645,7 @@
       <section id="settings-marking" class="settings-panel" role="tabpanel" data-settings-panel="marking" hidden>
         <header class="panel-head">
           <h3>Marking <span class="tip" data-tip="The pump uses MAVLink AUX4, PMB3 misc0, PCA9685 CH5 (Actuator_Set1). Percent is the commanded output range. Actual duty depends on the PX4 channel configuration."></span></h3>
-          <div class="panel-tools"><button type="button" id="marking-take-control" class="quiet">Take control</button></div>
+          <div class="panel-tools"><button type="button" id="marking-take-control" class="quiet">Start driving</button></div>
         </header>
         <div class="status-bar">
           <p id="marking-status" class="status-msg" role="status">Waiting for car settings</p>
@@ -740,7 +740,7 @@
             </label>
             <div class="card-actions">
               <button id="metal-apply" type="button" class="primary">Save</button>
-              <button id="metal-control" type="button" class="quiet">Take control</button>
+              <button id="metal-control" type="button" class="quiet">Start driving</button>
               <button id="metal-reset" type="button" class="quiet push-right" data-tip="Go back to the values the car started with.">Reset</button>
             </div>
             <p id="metal-voltage-note" class="meta">Detector input voltage.</p>
