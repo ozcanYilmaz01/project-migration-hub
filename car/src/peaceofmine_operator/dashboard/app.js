@@ -738,7 +738,7 @@ function updateSearchAlert(now) {
   banner.dataset.kind = active ? 'active' : 'recent';
   const title = active ? 'Possible metal here' : 'Possible metal behind you';
   const detail = active
-    ? `${reading} now · peak ${peak}. Stop and run Confirm arc.`
+    ? `${reading} now · peak ${peak}. Stop and run Check the spot.`
     : `Peak ${peak} ${Math.max(1, Math.round((now - searchAlert.firedAt) / 1000))} s ago. Back up to check it.`;
   if ($('search-alert-title').textContent !== title) $('search-alert-title').textContent = title;
   if ($('search-alert-detail').textContent !== detail) $('search-alert-detail').textContent = detail;
@@ -805,7 +805,7 @@ function markCurrentPose() {
 
 function operationBlock(allowManualTarget = false) {
   if (!state.connected) return 'Connect to the operator stack.';
-  if (!state.drive.you_control_owner) return 'Take control first.';
+  if (!state.drive.you_control_owner) return 'Start driving first.';
   if (!state.safety?.servo_allowed || !state.drive.armed) return state.safety?.servo_reason || 'RC must permit servo motion.';
   if (state.drive.calibrating) return 'Finish actuator calibration before operating.';
   if (state.inspection?.active) return 'A scan is running. Stop it first.';
@@ -1234,9 +1234,9 @@ function updateHud() {
   }
 
   $('client-count').textContent = `${drive.client_count} ${drive.client_count === 1 ? 'viewer' : 'viewers'}`;
-  $('control-owner').textContent = owner ? 'YOU CONTROL' : (drive.control_owner_present ? 'SPECTATING' : 'UNCLAIMED');
+  $('control-owner').textContent = owner ? "You're driving" : (drive.control_owner_present ? 'Watching only' : 'Nobody driving');
   $('control-owner').className = `badge ${owner ? 'safe' : 'neutral'}`;
-  $('take-control').textContent = owner ? 'In control' : drive.control_owner_present ? 'Take over' : 'Take control';
+  $('take-control').textContent = owner ? 'Stop driving' : drive.control_owner_present ? 'Take over driving' : 'Start driving';
 
   $('take-control').disabled = !state.connected || owner;
   const safe = state.safety?.allowed === true;
@@ -1245,8 +1245,8 @@ function updateHud() {
   const px4Badge = $('px4-arming');
   const known = typeof px4Armed === 'boolean';
   const simulated = state.connected && state.safety?.simulated && !known;
-  const unknown = state.connected && drive.px4_state_status === 'stale' ? 'PX4 STALE' : 'PX4 UNKNOWN';
-  setText(px4Badge, known ? (px4Armed ? 'PX4 ARMED' : 'PX4 DISARMED') : simulated ? 'PX4 N/A' : unknown);
+  const unknown = state.connected && drive.px4_state_status === 'stale' ? 'Car status unknown' : 'Car status unknown';
+  setText(px4Badge, known ? (px4Armed ? 'Car unlocked' : 'Car locked') : simulated ? 'Car lock: n/a' : unknown);
   px4Badge.className = `badge ${known ? (px4Armed ? 'active' : 'neutral') : simulated ? 'neutral' : 'warn'}`;
   px4Badge.title = known ? 'Vehicle arming reported by MAVROS' : simulated ? 'Simulation has no PX4 arming telemetry' : 'Vehicle arming telemetry is missing or stale';
   for (const [setupId, badge] of [['setup-arming', px4Badge], ['setup-owner', $('control-owner')]]) {
@@ -1257,8 +1257,8 @@ function updateHud() {
   const canConfigureDrive = owner && !!state.settings?.driving && !drivingPending;
   for (const id of ['drive-control-source', 'keyboard-max-throttle', 'keyboard-reverse-throttle'])
     $(id).disabled = !canConfigureDrive;
-  $('rc-safety').textContent = ({ros: 'RC ROS MODE', override: 'RC OVERRIDE', kill: 'RC KILL', rc_lost: 'RC LOST', ros_disarmed: 'RC DISARMED', simulation: 'SIMULATION'})[state.safety?.mode] || 'RC UNKNOWN · LOCKED';
-  if (servoSafe && !safe) $('rc-safety').textContent += ' · SERVOS READY';
+  $('rc-safety').textContent = state.safety?.mode === 'simulation' ? 'Simulation' : safe ? 'Remote: driving allowed' : 'Remote: driving blocked';
+  if (servoSafe && !safe) $('rc-safety').textContent += ' · arm can move';
   $('rc-safety').title = state.safety?.reason || 'Waiting for PX4 safety status';
   $('rc-safety').className = `badge ${safe ? 'ready' : 'blocked'}`;
 
@@ -1289,7 +1289,7 @@ function updateHud() {
   $('align-probe-hint').textContent = alignBlock || align.reason;
   $('mode-align-btn').disabled = Boolean(confirmBlock);
   $('mode-align-btn').title = confirmBlock || `Compare ${state.settings?.inspection?.passes ?? 2} passes across the target.`;
-  $('mode-align-btn').querySelector('.mode-text').textContent = state.inspection.phase === 'CONFIRMING' ? 'Confirming…' : 'Confirm arc';
+  $('mode-align-btn').querySelector('.mode-text').textContent = state.inspection.phase === 'CONFIRMING' ? 'Checking…' : 'Check the spot';
   $('mode-align-pill').textContent = state.inspection.phase === 'CONFIRMING' ? `${state.inspection.completed || 0}/${state.inspection.total}` : confirmBlock ? 'BLOCKED' : `${state.settings?.inspection?.passes ?? 2} PASSES`;
   $('start-probing').disabled = Boolean(cycleBlock);
   $('start-probing').title = cycleBlock;
@@ -1303,7 +1303,7 @@ function updateHud() {
   const scanDescription = scanLabel || 'Probe the planned positions around the hit';
   setText($('mode-probe-btn').querySelector('.mode-desc'), scanDescription);
   $('mode-probe-btn').title = scanBlock || scanDescription;
-  $('mode-probe-btn').querySelector('.mode-text').textContent = state.inspection.phase === 'PROBING' ? (probe.cycle_active && probe.cycle_phase === 'RETRACTING' ? 'Retracting…' : 'Probe scan running') : 'Probe scan';
+  $('mode-probe-btn').querySelector('.mode-text').textContent = state.inspection.phase === 'PROBING' ? (probe.cycle_active && probe.cycle_phase === 'RETRACTING' ? 'Retracting…' : 'Probing the ground…') : 'Probe the ground';
   $('mode-probe-pill').textContent = state.inspection.phase === 'PROBING' ? 'RUNNING' : scanBlock ? 'BLOCKED' : 'READY';
   renderInspection();
   const inspectionStatus = state.inspection.phase !== 'IDLE';
@@ -1325,7 +1325,7 @@ function updateHud() {
   $('mode-sweep-btn').title = sweepBlock;
   $('sweep-speed').disabled = Boolean(sweepBlock);
   $('mode-sweep-pill').textContent = detector.sweep_enabled ? 'SWEEPING' : sweepBlock ? 'BLOCKED' : 'READY';
-  $('mode-sweep-btn').querySelector('.mode-text').textContent = detector.sweep_enabled ? 'Stop search sweep' : 'Search sweep';
+  $('mode-sweep-btn').querySelector('.mode-text').textContent = detector.sweep_enabled ? 'Stop searching' : 'Search for metal';
   const pumpActive = Boolean(state.pump_active || drive.pump_active);
   if (pendingPumpMark && state.marking?.last_shot_request === pendingPumpMark.id) {
     pendingPumpMark = null;
@@ -1394,7 +1394,7 @@ function updateHud() {
   $('probe-status').className = `badge ${probe.fault || (probe.cycle_active && probe.contact_detected) ? 'active' : probe.cycle_active ? 'active' : probe.depth_mm > 2 ? 'safe' : 'neutral'}`;
 
   const driveBadge = !state.connected ? 'OFFLINE' : state.safety?.mode === 'override' ? (state.safety.servo_allowed ? 'RC CONTROL' : 'DRIVE LOCKED')
-    : !owner ? 'SPECTATOR' : !safe ? 'DRIVE LOCKED' : drive.calibrating ? 'CALIBRATING' : drive.publishing ? 'ROS CONTROL' : 'READY';
+    : !owner ? 'Watching only' : !safe ? 'DRIVE LOCKED' : drive.calibrating ? 'CALIBRATING' : drive.publishing ? 'ROS CONTROL' : 'READY';
   $('arm-state').textContent = driveBadge;
   $('arm-state').className = `badge ${owner && drive.armed ? 'active' : 'neutral'}`;
 
@@ -1448,7 +1448,7 @@ function driveBlockMessage() {
     return {text: state.drive.rc?.fresh ? 'Physical RC controls the vehicle.' : 'RC input stale', kind: state.drive.rc?.fresh ? 'ready' : 'blocked'};
   }
   if (!state.connected) return {text: 'Waiting for vehicle telemetry.', kind: 'blocked'};
-  if (!state.drive.you_control_owner) return {text: 'You are watching. Take control to drive.', kind: 'blocked'};
+  if (!state.drive.you_control_owner) return {text: 'You are watching. Press Start driving to drive.', kind: 'blocked'};
   if (!state.safety?.allowed) return {text: state.safety?.reason || 'Waiting for PX4 safety status', kind: 'blocked'};
   if (state.drive.calibrating) return {text: 'Actuator calibration is active. Finish calibration to drive.', kind: 'blocked'};
   const padReady = Boolean(gamepad) || rosJoyLive();
@@ -1840,7 +1840,7 @@ function clearHeldInput() {
 }
 
 $('take-control').onclick = () => send({type: 'take_control'});
-$('stop-controls').onclick = () => { stopInput(); send({type: 'estop'}); pendingPumpMark = null; showNotice('Stop requested. Take control again to resume.'); };
+$('stop-controls').onclick = () => { stopInput(); send({type: 'estop'}); pendingPumpMark = null; showNotice('Stop requested. Press Start driving again to resume.'); };
 $('probe-zero-contact').onclick = () => send({type: 'probe_zero_contact'});
 $('probe-stop').onclick = () => send({type: 'arm_servo', action: 'stop', role: 'probe'});
 
@@ -2971,7 +2971,7 @@ function armSetupForm({section, fields, save, status, describe, invalid, applies
     const changed = available && inputs.some(([key, input]) => input.valueAsNumber !== saved[key]);
     button.disabled = !owner || !available || Boolean(pending) || !valid || !changed;
     feedback.textContent = !available ? 'Waiting for car settings.'
-      : !owner ? 'Take control to edit.'
+      : !owner ? 'Start driving to edit.'
       : pending ? 'Saving…' : message
       || (!valid ? invalid : changed ? `Unsaved change. The car uses ${describe(saved)}.` : applies);
     preview?.();
@@ -3135,7 +3135,7 @@ Input range: ${range.min} to ${range.max} V` : 'Voltage reference unavailable.';
   $('metal-control').hidden = owner;
   $('metal-control').disabled = !state.connected;
   $('metal-feedback').textContent = !state.connected ? 'Connect to save calibration.'
-    : !owner ? 'Take control to save calibration.' : metalPending ? 'Saving…'
+    : !owner ? 'Start driving to save calibration.' : metalPending ? 'Saving…'
     : !range ? 'Waiting for detector voltage reference.'
     : metalFeedback || (fresh ? 'Ready' : 'Manual levels can be saved. Measurement needs fresh readings.');
   const packetKey = JSON.stringify(sensor.packet);
