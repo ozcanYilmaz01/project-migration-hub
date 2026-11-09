@@ -378,14 +378,15 @@ main { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: var(--gap); 
 .topbar { display: flex; align-items: center; gap: var(--s4); padding: var(--s2) var(--pad); flex-wrap: nowrap; }
 .topbar .brand { flex: none; }
 .topbar-status { flex: 1 1 auto; min-width: 0; justify-content: flex-end; }
-.legacy-status { display: none !important; }
-.ready-check { display: flex; align-items: center; gap: var(--s3); min-width: 0; }
+/* old badges stay in the DOM for app.js; the checklist replaces them on screen */
+.topbar .connection, #px4-arming, #rc-safety, #control-owner, #arm-state { display: none !important; }
+.ready-check { display: flex; flex: 1 1 auto; align-items: center; justify-content: flex-end; gap: var(--s3); min-width: 0; }
 .ready-list { display: flex; align-items: center; gap: var(--s3); margin: 0; padding: 0; list-style: none; flex: none; }
 .ready-item { display: inline-flex; align-items: center; gap: var(--s1); font-size: var(--fs-xs); font-weight: 600; color: var(--muted); white-space: nowrap; cursor: help; }
 .ready-item::before { content: ""; width: .5rem; height: .5rem; border-radius: 50%; background: var(--faint); }
 .ready-item[data-ok=true] { color: var(--text); }
 .ready-item[data-ok=true]::before { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-.ready-next { margin: 0; min-width: 0; font-size: var(--fs-sm); font-weight: 600; color: var(--warn); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ready-next { margin: 0; flex: 1 1 auto; min-width: 6rem; font-size: var(--fs-sm); font-weight: 600; color: var(--warn); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ready-next[data-ok=true] { color: var(--accent); }
 .brand { display: flex; align-items: baseline; gap: var(--s2); margin-right: auto; white-space: nowrap; }
 #environment-label { font-size: var(--fs-xs); color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
