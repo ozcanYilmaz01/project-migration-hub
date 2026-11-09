@@ -368,6 +368,40 @@
   document.addEventListener('keydown', e => lightKey(e, true));
   document.addEventListener('keyup', e => lightKey(e, false));
   window.addEventListener('blur', () => keyHint.querySelectorAll('kbd').forEach(k => { k.dataset.on = false; }));
+
+  /* ---------------------------------------------- Frozen video / link lost ---
+   * Read-only: uses state.connected, state.cameras[].frame_age_ms, lastTelemetryAt
+   * and the forward <video> playback time from app.js. */
+  const fwdVideo = $('forward-video'), fwdImage = $('forward-network-camera');
+  let videoTime = -1, videoChangedAt = performance.now(), lostAt = null;
+  function forwardFrozen() {
+    if (!state.connected) return false;
+    if (!fwdVideo.classList.contains('hidden')) {
+      if (fwdVideo.currentTime !== videoTime) { videoTime = fwdVideo.currentTime; videoChangedAt = performance.now(); }
+      return fwdVideo.readyState >= 2 && performance.now() - videoChangedAt > 1000;
+    }
+    const source = preferences.cameras?.forward || '';
+    if (!fwdImage.classList.contains('hidden') && source.startsWith('raspberry:')) {
+      const age = state.cameras?.[source.slice(10)]?.frame_age_ms;
+      if (!Number.isFinite(age)) return false;
+      return age + Math.max(0, performance.now() - lastTelemetryAt) > 1000;
+    }
+    return false; // simulated view is drawn locally
+  }
+  function renderLink() {
+    const frozen = forwardFrozen();
+    $('video-frozen').hidden = !frozen;
+    $('camera-panel').classList.toggle('is-frozen', frozen);
+    if (state.connected) lostAt = null; else if (lostAt === null) lostAt = performance.now();
+    const lost = lostAt !== null && performance.now() - lostAt > 1000;
+    $('link-lost').hidden = !lost;
+    document.body.dataset.link = lost ? 'lost' : 'ok';
+    if (lost) {
+      const secs = Math.floor((performance.now() - lostAt) / 1000);
+      $('link-lost-time').textContent = secs < 60 ? `${secs} s ago` : `${Math.floor(secs / 60)} min ${secs % 60} s ago`;
+    }
+  }
+  setInterval(renderLink, 200);
   tick();
   setInterval(tick, 250);
 })();

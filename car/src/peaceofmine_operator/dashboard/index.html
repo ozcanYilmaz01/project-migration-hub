@@ -46,6 +46,7 @@
       </div>
     </header>
 
+    <div id="link-lost" class="link-lost" role="alert" hidden><strong>Connection lost – reconnecting…</strong><span id="link-lost-time"></span></div>
     <section class="workspace" aria-label="Operator workspace">
       <div class="stage-frame">
         <div id="camera-stage" class="camera-stage" data-focus="forward">
@@ -55,6 +56,7 @@
             <img id="forward-network-camera" draggable="false" class="camera-feed hidden" alt="Front camera stream">
             <div class="camera-label" id="forward-camera-label">VIRTUAL FORWARD CAMERA</div>
             <div class="camera-latency hidden" id="forward-camera-latency">CAMERA --</div>
+            <div id="video-frozen" class="video-frozen" role="alert" hidden><strong>Video frozen – don't drive</strong></div>
             <div id="key-hint" class="key-hint" hidden aria-hidden="true"><kbd data-key="w">W</kbd><kbd data-key="a">A</kbd><kbd data-key="s">S</kbd><kbd data-key="d">D</kbd></div>
             <div id="input-lock" class="input-lock hidden">CLICK CAMERA FOR INPUT</div>
             <div class="speed-readout"><span>SPEED</span><strong id="speed">0.00 m/s</strong></div>
