@@ -282,39 +282,16 @@
         <p id="operation-help" class="workflow-status" role="status">Connecting to the car…</p>
         <div id="inspection-panel" hidden><p id="inspection-status" hidden></p><progress id="inspection-progress" max="1" value="0" aria-label="Scan progress" hidden></progress><details class="inspection-results"><summary>Scan results</summary><ol id="inspection-points" aria-label="Probe scan results"></ol></details></div>
         <div id="notice" class="notice hidden" role="alert"></div>
-
-        <details id="search-task" class="task-controls" open><summary>Sweep and alert</summary>
-          <div class="field-row"><label for="sweep-speed">Sweep speed</label><output id="sweep-speed-value">36&deg;/s</output></div>
-          <input id="sweep-speed" type="range" value="36">
-          <div class="field-row"><label for="search-alert-level">Alert voltage <span class="tip" data-tip="Alerts when the filtered detector voltage crosses this level toward the calibrated mine response. Saved on the car."></span></label>
-            <span class="probe-cycle-input-wrap"><input id="search-alert-level" type="number" min="-6.144" max="6.144" step="any" required disabled><span id="search-alert-value" class="unit">V</span></span></div>
-          <div class="check-row">
-            <label class="check"><input id="search-alert-enabled" type="checkbox" checked> Show alert</label>
-            <label class="check"><input id="search-alert-sound" type="checkbox" checked> Beep</label>
-          </div>
-        </details>
-
-        <details id="probe-task" class="task-controls" open><summary>Probe controls <span id="probe-status" class="badge neutral">SETUP REQUIRED</span></summary>
-          <div class="probe-numbers">
-            <span>Depth now <strong id="probe-depth">—</strong></span>
-            <span>Target <strong id="probe-target">—</strong></span>
-          </div>
-          <div class="probe-cycle-card">
-            <div class="field-row probe-cycle-input-row">
-              <label for="probe-cycle-target">Deepest probe</label>
-              <div class="probe-cycle-input-wrap"><input id="probe-cycle-target" type="number" min="0.1" step="any" value="80" required><span class="unit">mm</span></div>
-            </div>
-            <div class="field-row"><span id="probe-adc-contact" class="note" role="status">Waiting for a contact reading.</span><button type="button" class="quiet" data-open-settings="contact">Contact setup</button></div>
-            <div id="probe-cycle-alert" class="probe-cycle-alert hidden" role="alert">
+        <div class="probe-live" id="probe-live">
+          <div id="probe-cycle-alert" class="probe-cycle-alert hidden" role="alert">
               <span id="probe-cycle-alert-badge" class="badge active">CONTACT TRIGGER</span>
               <span id="probe-cycle-alert-text">Contact detected. Retracting.</span>
             </div>
-            <button id="probe-stop" type="button" class="danger-outline" data-tip="Releases the motor at once. Hold the probe so it does not drop.">Stop probe</button>
-          </div>
-          <p id="probe-cycle-help" class="step-note" role="status">Waiting for probe telemetry.</p>
-        </details>
+  <button id="probe-stop" type="button" class="danger-outline" data-tip="Releases the motor at once. Hold the probe so it does not drop.">Stop probe</button>
+        </div>
 
-        <div class="setup-shortcuts"><button type="button" class="quiet" data-open-settings="arm">Arm setup</button><button type="button" class="quiet" data-open-settings="probe">Probe setup</button></div>
+
+
       </aside>
     </section>
   </main>
@@ -329,21 +306,57 @@
       </header>
 
       <nav class="setup-nav" aria-label="Settings sections" role="tablist" aria-orientation="vertical">
-        <p class="setup-nav-group" aria-hidden="true">Driving</p>
+        <p class="setup-nav-group" aria-hidden="true">Basic</p>
         <button type="button" class="settings-tab active" role="tab" aria-selected="true" aria-controls="settings-input" data-settings-tab="input">Controls</button>
         <button type="button" class="settings-tab" role="tab" aria-selected="false" aria-controls="settings-cameras" data-settings-tab="cameras">Cameras</button>
-        <p class="setup-nav-group" aria-hidden="true">Payload</p>
-        <button type="button" class="settings-tab" role="tab" aria-selected="false" aria-controls="settings-arm" data-settings-tab="arm">Arm</button>
-        <button type="button" class="settings-tab" role="tab" aria-selected="false" aria-controls="settings-probe" data-settings-tab="probe">Probe</button>
-        <button type="button" class="settings-tab" role="tab" aria-selected="false" aria-controls="settings-marking" data-settings-tab="marking">Marking</button>
-        <p class="setup-nav-group" aria-hidden="true">Sensors</p>
-        <button type="button" class="settings-tab" role="tab" aria-selected="false" aria-controls="settings-contact" data-settings-tab="contact">Probe contact</button>
-        <button type="button" class="settings-tab" role="tab" aria-selected="false" aria-controls="settings-detector" data-settings-tab="detector">Metal detector</button>
-        <button type="button" class="settings-tab" role="tab" aria-selected="false" aria-controls="settings-adc" data-settings-tab="adc">Sensor board</button>
-        <button type="button" class="settings-tab" role="tab" aria-selected="false" aria-controls="settings-gnss" data-settings-tab="gnss">GNSS</button>
+        <button type="button" class="settings-tab" role="tab" aria-selected="false" aria-controls="settings-mission" data-settings-tab="mission">Mission settings</button>
+        <details id="setup-nav-advanced" class="setup-nav-advanced">
+          <summary class="setup-nav-group">Advanced – technicians</summary>
+          <p class="setup-nav-note">Only change these if you're calibrating the car.</p>
+          <button type="button" class="settings-tab" role="tab" aria-selected="false" aria-controls="settings-arm" data-settings-tab="arm">Arm</button>
+          <button type="button" class="settings-tab" role="tab" aria-selected="false" aria-controls="settings-probe" data-settings-tab="probe">Probe</button>
+          <button type="button" class="settings-tab" role="tab" aria-selected="false" aria-controls="settings-marking" data-settings-tab="marking">Marking</button>
+          <button type="button" class="settings-tab" role="tab" aria-selected="false" aria-controls="settings-contact" data-settings-tab="contact">Probe contact</button>
+          <button type="button" class="settings-tab" role="tab" aria-selected="false" aria-controls="settings-detector" data-settings-tab="detector">Metal detector</button>
+          <button type="button" class="settings-tab" role="tab" aria-selected="false" aria-controls="settings-adc" data-settings-tab="adc">Sensor board</button>
+          <button type="button" class="settings-tab" role="tab" aria-selected="false" aria-controls="settings-gnss" data-settings-tab="gnss">GNSS</button>
+        </details>
       </nav>
 
       <div class="setup-body">
+
+      <!-- ==================================================== Mission settings -->
+      <section id="settings-mission" class="settings-panel" role="tabpanel" data-settings-panel="mission" hidden>
+        <header class="panel-head">
+          <h3>Mission settings <span class="tip" data-tip="How the car searches for metal and how deep the probe goes. Saved on the car."></span></h3>
+        </header>
+        <div class="panel-grid cols-2">
+        <details id="search-task" class="task-controls set-card" open><summary><h4>Sweep and alert <span class="tip" data-tip="How fast the arm swings while searching, and when to warn you about metal."></span></h4></summary>
+          <div class="field-row"><label for="sweep-speed">Sweep speed</label><output id="sweep-speed-value">36&deg;/s</output></div>
+          <input id="sweep-speed" type="range" value="36">
+          <div class="field-row"><label for="search-alert-level">Alert voltage <span class="tip" data-tip="Alerts when the filtered detector voltage crosses this level toward the calibrated mine response. Saved on the car."></span></label>
+            <span class="probe-cycle-input-wrap"><input id="search-alert-level" type="number" min="-6.144" max="6.144" step="any" required disabled><span id="search-alert-value" class="unit">V</span></span></div>
+          <div class="check-row">
+            <label class="check"><input id="search-alert-enabled" type="checkbox" checked> Show alert</label>
+            <label class="check"><input id="search-alert-sound" type="checkbox" checked> Beep</label>
+          </div>
+        </details>
+        <details id="probe-task" class="task-controls set-card" open><summary><h4>Probe controls</h4> <span id="probe-status" class="badge neutral">SETUP REQUIRED</span></summary>
+          <div class="probe-numbers">
+            <span>Depth now <strong id="probe-depth">—</strong></span>
+            <span>Target <strong id="probe-target">—</strong></span>
+          </div>
+          <div class="probe-cycle-card">
+            <div class="field-row probe-cycle-input-row">
+              <label for="probe-cycle-target">Deepest probe</label>
+              <div class="probe-cycle-input-wrap"><input id="probe-cycle-target" type="number" min="0.1" step="any" value="80" required><span class="unit">mm</span></div>
+            </div>
+            <div class="field-row"><span id="probe-adc-contact" class="note" role="status">Waiting for a contact reading.</span><button type="button" class="quiet" data-open-settings="contact">Contact setup</button></div>
+          </div>
+          <p id="probe-cycle-help" class="step-note" role="status">Waiting for probe telemetry.</p>
+        </details>
+        </div>
+      </section>
 
       <!-- ============================================================ Controls -->
       <section id="settings-input" class="settings-panel active" role="tabpanel" data-settings-panel="input">

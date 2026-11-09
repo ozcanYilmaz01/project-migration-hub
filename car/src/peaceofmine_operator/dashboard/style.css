@@ -178,6 +178,18 @@ dialog a { color: var(--accent); }
 .setup-nav { display: flex; flex-direction: column; gap: var(--s1); padding: var(--s3) var(--s2); border-right: 1px solid var(--line); background: var(--surface); overflow: auto; }
 .setup-nav-group { margin: var(--s3) 0 var(--s1); padding: 0 var(--s2); color: var(--faint); font-size: var(--fs-xs); font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
 .setup-nav-group:first-child { margin-top: 0; }
+.setup-nav-advanced { display: flex; flex-direction: column; gap: var(--s1); }
+.setup-nav-advanced:not([open]) > :not(summary) { display: none; }
+.setup-nav-advanced > summary { display: flex; align-items: center; gap: var(--s1); cursor: pointer; list-style: none; }
+.setup-nav-advanced > summary::-webkit-details-marker { display: none; }
+.setup-nav-advanced > summary::before { content: "▸"; transition: transform .12s; }
+.setup-nav-advanced[open] > summary::before { transform: rotate(90deg); }
+.setup-nav-note { margin: 0 0 var(--s1); padding: 0 var(--s2); color: var(--faint); font-size: var(--fs-xs); }
+/* main-screen controls moved into Settings: their sections render as set-cards there */
+.settings-panel .task-controls { padding-top: var(--pad); border-top: 0; }
+.settings-panel .task-controls > summary { pointer-events: none; }
+.settings-panel .task-controls > summary::before { display: none; }
+.settings-panel .task-controls > summary h4 { margin: 0; }
 .settings-tab { width: 100%; min-height: var(--control-h); padding: 0 var(--s2); border: 0; background: transparent; color: var(--muted); text-align: left; box-shadow: inset 2px 0 0 transparent; }
 .settings-tab:hover:not(:disabled) { background: var(--surface-2); color: var(--text); }
 .settings-tab.active { background: var(--surface-2); color: var(--text); box-shadow: inset 2px 0 0 var(--accent); }
@@ -353,7 +365,8 @@ button.link:hover:not(:disabled) { background: none; color: var(--accent-text); 
 @media (max-width: 900px) {
   .setup { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr); }
   .setup-nav { flex-direction: row; flex-wrap: wrap; border-right: 0; border-bottom: 1px solid var(--line); }
-  .setup-nav-group { display: none; }
+  .setup-nav-group:not(summary), .setup-nav-note { display: none; }
+  .setup-nav-advanced { flex-direction: row; flex-wrap: wrap; }
   .settings-tab { width: auto; }
   .panel-grid.cols-2, .panel-grid.cols-3, .panel-grid.cols-wide, .diag-grid { grid-template-columns: minmax(0, 1fr); }
 }
@@ -388,6 +401,8 @@ main { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: var(--gap); 
 .ready-item[data-ok=true]::before { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .ready-next { margin: 0; flex: 0 1 auto; min-width: 0; font-size: var(--fs-sm); font-weight: 600; color: var(--warn); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ready-next[data-ok=true] { color: var(--accent); }
+.probe-live { display: grid; gap: var(--s2); }
+.probe-live[hidden] { display: none; }
 /* Details drawer: the tab dock, closed by default (layout.js toggles .details-open) */
 .workspace.workspace:not(.details-open):not(.detector-expanded) { grid-template-rows: minmax(0, 1fr) auto; grid-template-areas: "stage mission" "drive mission"; }
 .workspace:not(.details-open):not(.detector-expanded) > .dock { display: none; }
