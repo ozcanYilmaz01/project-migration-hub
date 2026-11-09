@@ -873,9 +873,10 @@ body[data-search-alert=active] #mode-align-btn:not(:disabled) { border-color: va
 #camera-panel.is-frozen :is(.camera-feed, canvas) { filter: grayscale(1) brightness(.45); }
 .link-lost {
   display: flex; align-items: center; justify-content: center; gap: var(--s3);
-  margin: 0 var(--s2); padding: var(--s2) var(--s3); min-height: var(--control-h);
+  padding: var(--s2) var(--s3); min-height: var(--control-h);
   border-radius: var(--radius-sm); background: var(--danger); color: var(--on-danger); font-size: var(--fs-md);
 }
 .link-lost span { font-family: var(--mono); font-size: var(--fs-sm); }
 /* Drive and mission controls grey out while the link is down (STOP stays live). */
 body[data-link=lost] :is(.drive-bar, #mission-steps, .mission-progress, #take-control, #probe-live) { opacity: .4; pointer-events: none; filter: grayscale(1); }
+main:has(> #link-lost:not([hidden])) { grid-template-rows: auto auto minmax(0, 1fr); }
