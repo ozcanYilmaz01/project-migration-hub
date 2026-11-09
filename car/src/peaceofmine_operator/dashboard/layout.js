@@ -145,7 +145,30 @@
     chip.dataset.level = !live || !Number.isFinite(pct) ? 'none' : pct < 20 ? 'low' : pct < 40 ? 'mid' : 'ok';
   }
 
-  const fullTextIds = ['controller', 'controller-mapping', 'drive-block', 'drive-help', 'detector-detail', 'position', 'connection'];
+  /* ------------------------------------------- Ready-to-drive checklist --- */
+  // Reads the hidden status badges that app.js keeps up to date.
+  const remoteHelp = {
+    override: "Flip the remote's switch to ROS to allow driving",
+    kill: "Release the kill switch on the remote",
+    rc_lost: "Turn on the remote and keep it in range",
+    ros_disarmed: "Arm the car on the remote",
+  };
+  function renderReady() {
+    const connected = !!state.connected;
+    const remote = connected && $('rc-safety').classList.contains('ready');
+    const owner = connected && $('control-owner').classList.contains('safe');
+    const items = {connected, remote, owner};
+    for (const el of document.querySelectorAll('[data-ready-item]')) el.dataset.ok = String(items[el.dataset.readyItem]);
+    const next = !connected ? 'Waiting for the car to connect…'
+      : !remote ? (remoteHelp[state.safety?.mode] || "Flip the remote's switch to ROS to allow driving")
+      : !owner ? ($('take-control').textContent.includes('Take over') ? 'Someone else is driving. Press Take over driving' : 'Press Start driving')
+      : 'Ready to drive';
+    const el = $('ready-next');
+    if (el.textContent !== next) el.textContent = next;
+    el.dataset.ok = String(connected && remote && owner);
+  }
+
+  const fullTextIds = ['controller', 'controller-mapping', 'drive-block', 'drive-help', 'detector-detail', 'position', 'connection', 'ready-next'];
   function tick() {
     const next = missionStage();
     if (next !== stage) {
@@ -161,6 +184,7 @@
     applyFocus();
     $('probe-camera-empty').hidden = probeCameraShown();
     renderChip();
+    renderReady();
     // one-line status texts are cut with an ellipsis; keep the full text on hover
     for (const id of fullTextIds) { const el = $(id); if (el && el.title !== el.textContent) el.title = el.textContent; }
     for (const el of document.querySelectorAll('.readouts dd')) { if (el.title !== el.textContent) el.title = el.textContent; }
