@@ -393,7 +393,7 @@ main { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: var(--gap); 
 .workspace:not(.details-open):not(.detector-expanded) > .dock { display: none; }
 .details-toggle { flex: none; }
 /* each number shows once: main-screen duplicates hidden, drawer shows words with numbers in a tip */
-.probe-readout, .raw-readout { display: none !important; }
+#probe-task .probe-numbers, .raw-readout { display: none !important; }
 .word-readout { cursor: help; }
 .signal-words { margin: 0 0 var(--s2); font-size: var(--fs-lg); font-weight: 600; color: var(--text); }
 .word-readout[data-level=strong] { color: var(--warn); }

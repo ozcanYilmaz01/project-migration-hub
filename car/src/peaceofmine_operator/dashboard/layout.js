@@ -135,7 +135,7 @@
 
   /* ------------------------------------------------------ Battery chip --- */
   const chip = $('power-chip');
-  chip.addEventListener('click', () => selectTab('drive'));
+  chip.addEventListener('click', () => { setDetails(true); selectTab('drive'); });
   function renderChip() {
     const battery = state.power?.battery || {};
     const live = state.connected && battery.available && !battery.stale && battery.present;
@@ -229,6 +229,58 @@
     $('mission-open-settings').hidden = !next.settings;
   }
 
+  /* ------------------------------------------------------ Details drawer --- */
+  const detailsBtn = $('details-toggle');
+  const DETAILS_KEY = 'pom.detailsOpen';
+  function setDetails(open) {
+    workspace.classList.toggle('details-open', open);
+    detailsBtn.textContent = open ? 'Details ▾' : 'Details ▸';
+    detailsBtn.setAttribute('aria-expanded', String(open));
+    try { localStorage.setItem(DETAILS_KEY, open ? '1' : '0'); } catch (_) { /* storage blocked */ }
+  }
+  let detailsOpen = false;
+  try { detailsOpen = localStorage.getItem(DETAILS_KEY) === '1'; } catch (_) { /* storage blocked */ }
+  setDetails(detailsOpen);
+  detailsBtn.addEventListener('click', () => setDetails(!workspace.classList.contains('details-open')));
+  $('search-alert-signal').addEventListener('click', () => { setDetails(true); selectTab('detector'); });
+
+  /* Words first; the raw numbers app.js writes stay hidden and move into the tip. */
+  function setWords(key, text, tip, level) {
+    for (const el of document.querySelectorAll(`[data-words-for="${key}"]`)) {
+      if (el.textContent !== text) el.textContent = text;
+      if (el.dataset.tip !== tip) el.dataset.tip = tip;
+      el.dataset.level = level || '';
+    }
+  }
+  function renderWords() {
+    const raw = $('detector-voltage').textContent.trim();
+    const volts = parseFloat($('signal').textContent);
+    const alertLevel = parseFloat($('search-alert-level').value);
+    if (!state.connected || !Number.isFinite(volts)) setWords('detector-voltage', 'No signal yet', 'No detector reading', '');
+    else {
+      const ratio = Number.isFinite(alertLevel) && alertLevel > 0 ? volts / alertLevel : 0;
+      const [text, level] = ratio >= 1 ? ['Strong signal', 'strong'] : ratio >= .8 ? ['Getting stronger', ''] : ['Quiet · no metal', 'good'];
+      const tip = `${raw} now${Number.isFinite(alertLevel) ? ` · alert at ${alertLevel} V` : ''}`;
+      setWords('detector-voltage', text, tip, level);
+      setWords('signal', text, tip, level);
+    }
+    if (!state.connected || !Number.isFinite(volts)) setWords('signal', 'No signal yet', 'No detector reading', '');
+    const probe = state.probe || {};
+    const depth = Number.isFinite(probe.depth_mm) ? Math.round(probe.depth_mm) : null;
+    const probeTip = `Depth ${depth ?? '—'} mm · target ${Number.isFinite(probe.target_mm) ? Math.round(probe.target_mm) : '—'} mm`;
+    setWords('probe', !state.connected ? 'Waiting for the probe'
+      : probe.contact_detected && Number.isFinite(probe.contact_depth_mm) ? `Contact at ${Math.round(probe.contact_depth_mm)} mm`
+      : probe.cycle_active ? `Probing · ${depth ?? 0} mm deep`
+      : depth ? `Probe at ${depth} mm` : 'Probe up · no contact', probeTip, probe.contact_detected ? 'strong' : '');
+    const b = state.power?.battery || {};
+    const live = state.connected && b.available && !b.stale && b.present;
+    const pct = b.remaining_pct;
+    const battTip = ['battery-charge', 'battery-watts', 'battery-voltage', 'battery-current', 'battery-temperature', 'battery-cells']
+      .map(id => `${{'battery-charge': 'Charge', 'battery-watts': 'Draw', 'battery-voltage': 'Voltage', 'battery-current': 'Current', 'battery-temperature': 'Temperature', 'battery-cells': 'Cell spread'}[id]} ${$(id).textContent}`).join(' · ');
+    setWords('battery', !live || !Number.isFinite(pct) ? 'No battery data' : pct < 20 ? 'Battery low · charge soon' : pct < 40 ? 'Battery half empty' : 'Battery good',
+      battTip, !live || !Number.isFinite(pct) ? '' : pct < 20 ? 'low' : pct < 40 ? 'strong' : 'good');
+  }
+
   const fullTextIds = ['controller', 'controller-mapping', 'drive-block', 'drive-help', 'detector-detail', 'position', 'connection', 'ready-next'];
   function tick() {
     const next = missionStage();
@@ -247,6 +299,7 @@
     renderChip();
     renderReady();
     renderMission();
+    renderWords();
     // one-line status texts are cut with an ellipsis; keep the full text on hover
     for (const id of fullTextIds) { const el = $(id); if (el && el.title !== el.textContent) el.title = el.textContent; }
     for (const el of document.querySelectorAll('.readouts dd')) { if (el.title !== el.textContent) el.title = el.textContent; }
