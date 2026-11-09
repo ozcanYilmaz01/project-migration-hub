@@ -490,7 +490,7 @@ main { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: var(--gap); 
 .camera-latency, .aux-camera-latency { top: calc(var(--s2) * 2 + 1.4rem); left: var(--s2); }
 .camera-latency.stale, .aux-camera-latency.stale { border-color: var(--danger); color: var(--danger-text); }
 .speed-readout { top: var(--s2); right: var(--s2); text-align: right; }
-.speed-readout span { display: block; color: var(--muted); font-size: .58rem; }
+.speed-readout span { display: block; color: var(--muted); font-size: var(--fs-sm); }
 .speed-readout strong { font-family: var(--mono); font-size: var(--fs-lg); letter-spacing: 0; }
 .input-lock { bottom: var(--s2); left: var(--s2); max-width: calc(100% - 1rem); }
 .input-lock.locked { border-color: var(--accent); color: var(--accent-text); }
