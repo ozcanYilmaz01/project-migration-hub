@@ -116,15 +116,23 @@
     if (phase === 'CONFIRMING') return 'confirm';
     return 'drive';
   }
+  // The probe camera stays a corner thumbnail; only a click enlarges it.
   function applyFocus() {
-    const probeLarge = manualFocus === 'probe' || (manualFocus === null && stage === 'probe' && probeCameraShown());
     document.body.dataset.stage = stage;
-    if (stageEl.dataset.focus === (probeLarge ? 'probe' : 'forward')) return;
-    stageEl.dataset.focus = probeLarge ? 'probe' : 'forward';
-    $('camera-swap-label').textContent = probeLarge ? 'Enlarge front camera' : 'Enlarge probe camera';
+    stageEl.dataset.focus = 'forward';
+    const large = manualFocus === 'probe' && probeCameraShown();
+    if ((stageEl.dataset.probeSize === 'large') === large) return;
+    stageEl.dataset.probeSize = large ? 'large' : 'small';
     window.dispatchEvent(new Event('resize'));
   }
-  $('camera-swap').addEventListener('click', () => { manualFocus = stageEl.dataset.focus === 'probe' ? 'forward' : 'probe'; applyFocus(); });
+  function setProbeLarge(on) { manualFocus = on ? 'probe' : null; applyFocus(); }
+  $('probe-camera-panel').addEventListener('click', event => {
+    if (event.target.closest('button, a, input, select')) return;
+    setProbeLarge(stageEl.dataset.probeSize !== 'large');
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && stageEl.dataset.probeSize === 'large' && !document.querySelector('dialog[open]')) setProbeLarge(false);
+  });
 
   /* ------------------------------------------------------- Probe camera --- */
   function probeCameraShown() {
