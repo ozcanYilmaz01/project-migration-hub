@@ -1303,7 +1303,7 @@ function updateHud() {
   const scanDescription = scanLabel || 'Probe the planned positions around the hit';
   setText($('mode-probe-btn').querySelector('.mode-desc'), scanDescription);
   $('mode-probe-btn').title = scanBlock || scanDescription;
-  $('mode-probe-btn').querySelector('.mode-text').textContent = state.inspection.phase === 'PROBING' ? (probe.cycle_active && probe.cycle_phase === 'RETRACTING' ? 'Retracting…' : 'Probing the ground…') : 'Probe scan';
+  $('mode-probe-btn').querySelector('.mode-text').textContent = state.inspection.phase === 'PROBING' ? (probe.cycle_active && probe.cycle_phase === 'RETRACTING' ? 'Retracting…' : 'Probing the ground…') : 'Probe the ground';
   $('mode-probe-pill').textContent = state.inspection.phase === 'PROBING' ? 'RUNNING' : scanBlock ? 'BLOCKED' : 'READY';
   renderInspection();
   const inspectionStatus = state.inspection.phase !== 'IDLE';
@@ -1394,7 +1394,7 @@ function updateHud() {
   $('probe-status').className = `badge ${probe.fault || (probe.cycle_active && probe.contact_detected) ? 'active' : probe.cycle_active ? 'active' : probe.depth_mm > 2 ? 'safe' : 'neutral'}`;
 
   const driveBadge = !state.connected ? 'OFFLINE' : state.safety?.mode === 'override' ? (state.safety.servo_allowed ? 'RC CONTROL' : 'DRIVE LOCKED')
-    : !owner ? 'SPECTATOR' : !safe ? 'DRIVE LOCKED' : drive.calibrating ? 'CALIBRATING' : drive.publishing ? 'ROS CONTROL' : 'READY';
+    : !owner ? 'Watching only' : !safe ? 'DRIVE LOCKED' : drive.calibrating ? 'CALIBRATING' : drive.publishing ? 'ROS CONTROL' : 'READY';
   $('arm-state').textContent = driveBadge;
   $('arm-state').className = `badge ${owner && drive.armed ? 'active' : 'neutral'}`;
 

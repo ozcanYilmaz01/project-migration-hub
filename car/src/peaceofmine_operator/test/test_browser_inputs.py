@@ -302,7 +302,7 @@ assert(sent.slice(beforeRcInput).some(m => m.type === 'rc_drive_enable' && m.ena
 assert(!sent.slice(beforeRcInput).some(m => m.type === 'drive'), 'no browser drive competes with RC through ROS');
 stopInput();
 assert(sent.at(-1).type === 'rc_drive_enable' && !sent.at(-1).enabled,'focus loss releases ROS RC enable');
-for (const [armed, status, label] of [[true,'fresh','PX4 ARMED'], [false,'fresh','PX4 DISARMED'], [null,'stale','PX4 STALE'], [null,'unavailable','PX4 UNKNOWN']]) {
+for (const [armed, status, label] of [[true,'fresh','Car unlocked'], [false,'fresh','Car locked'], [null,'stale','Car status unknown'], [null,'unavailable','Car status unknown']]) {
   state.drive.px4_armed = armed;
   state.drive.px4_state_status = status;
   updateHud();
@@ -1165,7 +1165,7 @@ keys.add('KeyW'); cameraFocused = true;
 const previousNotice = $('notice').textContent;
 lastTelemetryAt = performance.now() - 1100;
 receive({type:'latency_pong',probe_id:-1}); gatewayWatchdog();
-assert(!state.connected && $('px4-arming').textContent === 'PX4 UNKNOWN', 'a live socket cannot keep the vehicle arming badge fresh');
+assert(!state.connected && $('px4-arming').textContent === 'Car status unknown', 'a live socket cannot keep the vehicle arming badge fresh');
 receive({type:'control_status',available:false});
 assert(forcedCloses === 0 && !state.connected && !state.drive.you_control_owner && !state.drive.armed && keys.size === 0 && cameraFocused && keyboardCaptured(),'ROS outage clears stale input without dropping camera capture or closing gateway');
 assert($('connection-title').textContent === 'Waiting for control telemetry' && $('connection-overlay').classList.contains('hidden') && $('notice').textContent === previousNotice,'ROS outage has accurate status without persistent error spam');
