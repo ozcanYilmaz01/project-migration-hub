@@ -24,11 +24,19 @@
     <header class="topbar">
       <div class="brand"><h1>PeaceOfMine</h1><span id="environment-label">Connecting</span></div>
       <div class="topbar-status" aria-label="Vehicle status">
-        <div class="connection"><span id="connection-dot"></span><span id="connection">Connecting</span></div>
-        <span id="px4-arming" class="badge neutral" role="status" title="Waiting for MAVROS state">Car status unknown</span>
-        <span id="rc-safety" class="badge neutral" title="PX4 safety status">Remote: driving blocked</span>
+        <div class="ready-check" aria-label="Ready to drive">
+          <ul class="ready-list">
+            <li class="ready-item" data-ready-item="connected" data-tip="The dashboard is talking to the car.">Connected</li>
+            <li class="ready-item" data-ready-item="remote" data-tip="The switch on the physical remote decides whether the car may drive.">Remote allows driving</li>
+            <li class="ready-item" data-ready-item="owner" data-tip="Only one person drives at a time. Everyone else watches.">You're driving</li>
+          </ul>
+          <p id="ready-next" class="ready-next" role="status" aria-live="polite"></p>
+        </div>
+        <div class="connection legacy-status"><span id="connection-dot"></span><span id="connection">Connecting</span></div>
+        <span id="px4-arming" class="badge neutral legacy-status" role="status" title="Waiting for MAVROS state">Car status unknown</span>
+        <span id="rc-safety" class="badge neutral legacy-status" title="PX4 safety status">Remote: driving blocked</span>
+        <span id="control-owner" class="badge neutral legacy-status">Watching only</span>
         <button id="power-chip" type="button" class="power-chip" title="Battery · opens the Car health tab"><span id="power-chip-pct">—</span><span id="power-chip-w">— W</span></button>
-        <span id="control-owner" class="badge neutral">Watching only</span>
       </div>
       <div class="topbar-actions">
         <button id="settings" type="button" class="quiet">Settings</button>
@@ -71,7 +79,7 @@
         </label>
         <div class="drive-text input-state"><p id="controller">Choose an input</p><p id="controller-mapping"></p></div>
         <div class="drive-text drive-feedback"><p id="drive-block">Start driving when the remote allows it.</p><p id="drive-help">Click the camera for WASD · Esc releases the keys · hold Space to sweep</p></div>
-        <span id="arm-state" class="badge neutral">Car locked</span>
+        <span id="arm-state" class="badge neutral legacy-status">Car locked</span>
         <button type="button" class="quiet" data-open-settings="input">Input setup</button>
       </div>
 

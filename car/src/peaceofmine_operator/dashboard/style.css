@@ -375,7 +375,23 @@ main { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: var(--gap); 
 }
 
 /* ------------------------------------------------------------ Header --- */
-.topbar { display: flex; align-items: center; gap: var(--s4); padding: var(--s2) var(--pad); }
+.topbar { display: flex; align-items: center; gap: var(--s4); padding: var(--s2) var(--pad); flex-wrap: nowrap; }
+.topbar .brand { flex: none; }
+.topbar-status { flex: 1 1 auto; min-width: 0; justify-content: flex-end; }
+/* old badges stay in the DOM for app.js; the checklist replaces them on screen */
+.topbar .connection, #px4-arming, #rc-safety, #control-owner, #arm-state { display: none !important; }
+.ready-check { display: flex; flex: 1 1 auto; align-items: center; justify-content: flex-end; gap: var(--s3); min-width: 0; }
+.ready-list { display: flex; align-items: center; gap: var(--s3); margin: 0; padding: 0; list-style: none; flex: none; }
+.ready-item { display: inline-flex; align-items: center; gap: var(--s1); font-size: var(--fs-xs); font-weight: 600; color: var(--muted); white-space: nowrap; cursor: help; }
+.ready-item::before { content: ""; width: .5rem; height: .5rem; border-radius: 50%; background: var(--faint); }
+.ready-item[data-ok=true] { color: var(--text); }
+.ready-item[data-ok=true]::before { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.ready-next { margin: 0; flex: 0 1 auto; min-width: 0; font-size: var(--fs-sm); font-weight: 600; color: var(--warn); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ready-next[data-ok=true] { color: var(--accent); }
+@media (max-width: 1150px) {
+  .topbar #environment-label { display: none; }
+  .ready-list { gap: var(--s2); }
+}
 .brand { display: flex; align-items: baseline; gap: var(--s2); margin-right: auto; white-space: nowrap; }
 #environment-label { font-size: var(--fs-xs); color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
 .topbar-status, .topbar-actions { display: flex; align-items: center; gap: var(--s2); }
@@ -383,7 +399,7 @@ main { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: var(--gap); 
 .connection { display: flex; align-items: center; gap: var(--s2); max-width: 16rem; color: var(--muted); font-size: var(--fs-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #connection { overflow: hidden; text-overflow: ellipsis; }
 #connection-dot { width: .5rem; height: .5rem; flex: none; border-radius: 50%; background: var(--danger); }
-#stop-controls { min-width: 5.5rem; letter-spacing: .08em; font-weight: 700; }
+#stop-controls { min-width: 7.5rem; min-height: calc(var(--control-h) + var(--s2)); font-size: var(--fs-sm); letter-spacing: .08em; font-weight: 700; }
 #rc-safety.blocked { color: var(--danger-text); }
 #rc-safety.ready { color: var(--accent-text); }
 
@@ -704,8 +720,7 @@ body[data-search-alert=active] #mode-align-btn:not(:disabled) { border-color: va
  */
 @media (max-width: 1000px), (max-height: 600px) {
   main { height: auto; min-height: 100dvh; }
-  .topbar { flex-wrap: wrap; }
-  .topbar-status, .topbar-actions { flex-wrap: wrap; min-width: 0; }
+  .ready-list { display: none; }
   .workspace { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; grid-template-areas: "stage" "drive" "mission" "dock"; }
   .stage-frame { aspect-ratio: 16 / 9; container-type: size; }
   .drive-bar { flex-wrap: wrap; }
