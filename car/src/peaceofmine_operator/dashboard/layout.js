@@ -306,7 +306,6 @@
     if (next !== stage) {
       const entering = stage !== null;
       stage = next;
-      manualFocus = null;
       if (entering) selectTab(stage === 'probe' ? 'probe' : stage === 'confirm' ? 'detector' : 'overview');
     }
     const off = preferences.cameras.auxiliary === 'off';
