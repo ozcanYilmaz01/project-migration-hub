@@ -706,8 +706,8 @@ body[data-search-alert=active] #mode-align-btn:not(:disabled) { border-color: va
 .workflow-buttons[data-current] .mode-btn:disabled .mode-num { background: transparent; border-color: var(--line-strong); color: var(--muted); }
 .workflow-buttons[data-current] .mode-desc, .workflow-buttons[data-current] .badge, .workflow-buttons[data-current] .step-note, .mission #operation-help { display: none !important; }
 .mission-progress { display: flex; align-items: center; gap: var(--s1); margin: 0; padding: 0; list-style: none; }
-.mission-progress li { flex: 1; display: flex; align-items: center; gap: var(--s1); }
-.mission-progress li + li::before { content: ""; flex: 0 0 var(--s3); height: 1px; background: var(--line-strong); }
+.mission-progress li { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: var(--s1); }
+.mission-progress li + li::before { content: ""; flex: 1 1 var(--s2); min-width: var(--s1); height: 1px; background: var(--line-strong); }
 .mission-progress li[data-done=true] + li::before { background: var(--accent); }
 .mission-dot { display: inline-flex; align-items: center; gap: var(--s1); min-height: 0; padding: 0; border: 0; background: none; color: var(--faint); font-size: var(--fs-xs); font-weight: 600; }
 .mission-dot-num { display: grid; place-items: center; width: 1.25rem; height: 1.25rem; border: 1px solid var(--line-strong); border-radius: 50%; font-size: var(--fs-xs); }
