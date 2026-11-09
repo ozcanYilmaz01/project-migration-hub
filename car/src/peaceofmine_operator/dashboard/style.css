@@ -659,6 +659,31 @@ body[data-search-alert=active] #mode-align-btn:not(:disabled) { border-color: va
 .task-workbench > .section-head { min-height: var(--control-h-sm); }
 .workflow-buttons { display: grid; gap: var(--s2); }
 .operation-action { display: grid; gap: var(--s1); }
+/* guided flow: only the current step is shown (layout.js sets data-current) */
+.workflow-buttons[data-current] .operation-action { display: none; }
+.workflow-buttons[data-current=sweep] [data-step=sweep], .workflow-buttons[data-current=align] [data-step=align],
+.workflow-buttons[data-current=probe] [data-step=probe], .workflow-buttons[data-current=mark] [data-step=mark] { display: grid; }
+.workflow-buttons[data-current] .mode-btn { grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "num text"; min-height: 4rem; padding: var(--s3) var(--s4); border-color: var(--accent); background: var(--accent-soft); }
+.workflow-buttons[data-current] .mode-btn:disabled { border-color: var(--line-strong); background: var(--surface-2); }
+.workflow-buttons[data-current] .mode-text { font-size: var(--fs-lg); }
+.workflow-buttons[data-current] .mode-num { width: 2rem; height: 2rem; background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.workflow-buttons[data-current] .mode-btn:disabled .mode-num { background: transparent; border-color: var(--line-strong); color: var(--muted); }
+.workflow-buttons[data-current] .mode-desc, .workflow-buttons[data-current] .badge, .workflow-buttons[data-current] .step-note, .mission #operation-help { display: none !important; }
+.mission-progress { display: flex; align-items: center; gap: var(--s1); margin: 0; padding: 0; list-style: none; }
+.mission-progress li { flex: 1; display: flex; align-items: center; gap: var(--s1); }
+.mission-progress li + li::before { content: ""; flex: 0 0 var(--s3); height: 1px; background: var(--line-strong); }
+.mission-progress li[data-done=true] + li::before { background: var(--accent); }
+.mission-dot { display: inline-flex; align-items: center; gap: var(--s1); min-height: 0; padding: 0; border: 0; background: none; color: var(--faint); font-size: var(--fs-xs); font-weight: 600; }
+.mission-dot-num { display: grid; place-items: center; width: 1.25rem; height: 1.25rem; border: 1px solid var(--line-strong); border-radius: 50%; font-size: var(--fs-xs); }
+.mission-progress li[data-done=true] .mission-dot { color: var(--muted); }
+.mission-progress li[data-done=true] .mission-dot-num { border-color: var(--accent); color: var(--accent); }
+.mission-progress li[data-current=true] .mission-dot { color: var(--text); }
+.mission-progress li[data-current=true] .mission-dot-num { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.mission-explain { margin: var(--s2) 0 0; color: var(--text); font-size: var(--fs-md); }
+.mission-next { margin: var(--s1) 0 0; color: var(--muted); font-size: var(--fs-sm); }
+.mission-next[data-kind=blocked] { color: var(--warn); }
+.mission-next[data-kind=running] { color: var(--accent); }
+.link-btn { min-height: 0; padding: 0; border: 0; background: none; color: var(--accent); font-size: inherit; font-weight: 600; text-decoration: underline; }
 .mode-btn {
   display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "num text badge" "num desc desc";
   align-items: center; gap: .1rem var(--s3);
