@@ -1,0 +1,165 @@
+# Operator architecture
+
+Both public launch commands compose the same nodes. `operator_sim.launch.py`
+includes `operator.launch.xml` with simulation defaults. Simulation replaces device
+access, not the arm/probe behavior implementations.
+
+See [the ROS graph](ros_graph.md) for interfaces and publisher/subscriber diagrams.
+
+## Ownership
+
+| Component | Responsibility |
+| --- | --- |
+| `operator_web_node.py`, `web_bridge.py` | HTTP/TLS, WebSocket, ROS state cache, camera proxy; no hardware or persistence writes |
+| `operator_control_node.py` | Browser leases, explicit arming, drive/deadman timeout, RC gates, authorization and dispatch |
+| `servo_driver_node.py` | One serial connection, discovery, telemetry, independent RC/permission gate and command watchdog |
+| `servo_runtime.py`, `servo_motor.py`, `servo_transport.py` | Serialized hardware transactions, bounded motion primitives, protective load stop and firmware protocol |
+| `arm_controller_node.py` | Calibration, positions, sweeps and arm action lifecycle |
+| `probe_controller_node.py` | Homing, calibrated depth/holding, RC/fault interlocks and contact interpretation |
+| `actuator_controller.py` | Nonblocking common lifecycle, typed commands/status, action execution and settings client |
+| `actuator_protocol.py` | Browser optional-field conversion to typed actuator messages |
+| `ads1115_node.py`, `adc_acquisition.py`, `ads1115.py` | Acquisition and configuration application; timestamped typed ADC samples and scalar measurements |
+| `adc_contact.py`, `probe_contact.py` | ADC threshold/hysteresis/debounce and session-only motor contact baseline |
+| `sensor_serial_node.py`, `sensor_serial.py` | Legacy Arduino/ESP32 serial acquisition (deprecated; replaced by direct I2C ADS1115 ADC reading) |
+| `detector_node.py` | Detector interpretation from direct I2C ADC / fallback, calibrated plot geometry and georeferenced detections |
+| `operator_settings_node.py`, `configuration.py` | Sole runtime file writer; validation, optimistic revisions, migration and atomic persistence |
+| `settings_client.py` | Asynchronous saves; no extra executor/thread and no blocking control-loop wait |
+| Camera drivers / `camera_registry_node.py` | Capture / lightweight camera metadata discovery |
+| `power_node.py` | Battery and ESC telemetry |
+| `simulated_servo_bus.py` | Fake device registers/plant under the production driver |
+| `simulated_payload.py` | Simulated detector/environment signals, including simulated probe load input |
+
+`peaceofmine_interfaces` is a separate ament/rosidl package containing the motor,
+actuator, ADC, contact, configuration and action contracts. Web-oriented aggregate
+telemetry and configuration documents retain JSON at the presentation boundary.
+
+## Browser transport
+
+Control readiness and gateway connectivity are separate. A missing or stale
+`operator/state` disables browser controls and sends `control_status` while the
+WebSocket stays open; fresh state recovers it. Only missing gateway messages or an
+actual socket failure reconnect the browser. Motion watchdogs retain their existing
+timeouts.
+
+Live status travels at 20 Hz. Full detector and probe plot histories travel at
+5 Hz, with history age, preserving every retained sample. Intermediate packets
+omit history and the browser keeps aging the previous array. Probe history has
+one canonical copy. Each viewer has at most one pending state send, so a slow
+viewer cannot queue old state or block other viewers. Inspection uses the small
+20 Hz `detector/control_state` topic instead of parsing full plot histories.
+
+## Motor contract and timing
+
+The driver accepts a whole `ServoCommand`: target/profile, bounds, nonzero speed,
+acceleration, optional protective load stop, servo ID, owner and operation ID.
+It checks the saved speed/acceleration limits for every request. Register-level RPC
+and its per-controller executor threads have been removed.
+
+The driver publishes `ServoState` with a coherent per-servo snapshot. Controllers
+read the latest received state; they never wait for a register reply. Driver-owned
+register transactions are bounded by the existing serial timeout. The firmware
+watchdog remains independent of the host process and ROS executor.
+
+Commands echo the driver session and a recent driver-issued challenge. The driver
+checks challenge age using its own monotonic clock, so clocks on different hosts
+are not compared. Sequence numbers reject duplicate/reordered renewals. A 250 ms
+command watchdog or permission loss retires the operation ID before torque-off;
+renewing that ID can never restart motion. A new explicit operation is required.
+Browser-to-controller commands also carry a timestamp and expire after 250 ms;
+ROS hosts using this interface must have synchronized wall clocks.
+
+The current firmware supports one active actuator. The driver rejects a competing
+operation. An idle controller cannot release another controller's servo. Hardware
+configuration services require the bus to be stopped. A driver reconnect changes
+its session and invalidates outstanding commands and probe home position.
+
+Motion topics use volatile, bounded queues. No latched motion is restored at
+startup. Safety does not depend on an action client's cancellation packet arriving:
+controller interlocks, permission freshness and driver/firmware watchdogs remain.
+
+## Behaviors
+
+Probe homing, jogging and target movement continuously enforce fresh RC permission,
+driver telemetry and no probe fault. Odometry is not a motion prerequisite. Probe
+targets require the probe's own home and travel calibration; arm motion and marking
+do not depend on probe setup. Active probe and marking operations remain mutually
+exclusive.
+
+`arm/execute` supports `sweep`, `position` and `angle`; `probe/execute` supports
+`home`, `target` and `probe_cycle`. Arm angle actions complete once the current goal is applied, the measured
+position is within the configured arm sweep endpoint tolerance, and measured
+speed is at most three MX speed units (the firmware's reversal-settled threshold).
+They then release torque. Results include contact and measured contact depth for probe cycles. Actions expose feedback, cancellation and final success/failure. At startup the probe controller assumes the first encoder position is the top. A homing load stop or an explicit release of the held Home button sets the encoder zero. Reconnecting the same servo in the same encoder mode retains that zero.
+
+The browser's probe target retains its existing bounded hold behavior: hold the
+requested depth until Stop, permission/interlock loss, or the 60-second timeout.
+A ROS `target` action completes at depth and releases torque. Motor-contact zeroing
+remains session-only and requires a stable hold. ADC trigger and homing motor-load threshold are separate settings.
+An automated `probe_cycle` command (`start_probe_cycle`) descends toward an editable target depth (default 80 mm).
+The saved contact input, threshold, hysteresis and debounce determine a hit during descent. Motor load is used to home; current and motor load are diagnostic readings during the scan.
+If the filtered ADC crosses the configured contact limit before the target depth, descent halts immediately, contact depth is recorded, and the probe automatically retracts to 0 mm with an audible/visual operator alert.
+If the target depth is reached without contact, the probe safely retracts and logs a clear result.
+The RC operator supervises vehicle motion during probing. A deliberate drive input cancels an active inspection. Cycle completion requires encoder arrival from the current operation, including for shallow targets.
+
+Probe ADC contact consumes `adc/filtered_samples`, not a plot. Disabled, unavailable,
+configuration-mismatched or stale measurements produce unknown contact. Hysteresis
+and debounce avoid threshold chatter; plot routing never changes detection input.
+
+Confirmation receives overlapping batches of the same timestamped angle and filtered voltage samples used by the graph. Each pass keeps each acquisition once and uses a three-point median curve in one-degree angle bins.
+Peak prominence is measured above both local shoulders and must exceed three times
+the noise estimated from differences between consecutive filtered samples. A qualifying arc spans
+at least 3° at half prominence. Each pass estimates its own baseline, amplitude and weighted center above half prominence.
+Confirmation selects the largest group with a shared intersection covering at least half its combined span.
+The group must include both directions and a majority of all requested passes. The final bearing
+averages the median centers of the forward and reverse passes in that group. Absolute Baseline/Mine settings still
+control the search meter and manual peak detection, not confirmation. Search
+sweeps default to 36°/s; confirmation uses the selected search sweep speed.
+
+The control node owns `InspectionWorkflow`: 2, 4, 6 or 8 alternating confirmation passes,
+then a sequential probe scan using the point count and spacing saved on the car. It uses the existing ROS action
+servers, waits for stopped/torque-off telemetry between operations, and cancels
+on permission/session loss or actuator failure. Detector/probe mounting geometry
+is applied before commanding arm angles. Browser state exposes phase, progress
+and the actual per-point results; a browser reconnect cannot replay old goals.
+The UI's normal probe depth/contact controls use the existing ADC settings owner.
+
+## Persistence
+
+`operator_config.json` has `schema_version`, a document `revision`, and
+`section_revisions`. Existing unversioned calibration files load as schema 1.
+The old `calibration.json` is imported only when the new file is missing, and remains
+untouched. Atomic replace, file locking, ownership preservation and fsync protect
+saves. The settings service rejects stale revisions and preserves other sections.
+
+Persistent sections include arm/probe calibration, arm/probe motion limits, probe direction, ADC
+hardware configuration/scaling, plot routing, probe ADC threshold, detector
+calibration and robot camera defaults. ADC simulation uses `adc_simulation`.
+Simulated actuator saves use `arm_simulation`, `probe_simulation`,
+`arm_motion_simulation` and `probe_motion_simulation`. Hardware calibration is a
+read-only fallback until a simulation-specific section exists.
+The probe trigger remains nested in the ADC settings document for existing file/UI
+compatibility; its evaluator belongs to the probe controller.
+
+Device nodes validate/apply their settings and use the asynchronous settings service
+for persistence. Saved revision and applied/readback state are distinct. Driver
+configuration refresh stops active motion when actuator settings change. Camera
+capture changes require restart; display defaults update through ROS. A failed or
+timed-out save is visible to the client, never silently reported as applied.
+
+Live arming, leases, active operations, acquisition-running state and probe home
+position are never restored. Browser controller mappings and laptop-camera IDs stay
+local. Ports, namespaces, TLS paths and hardware-enable flags remain launch options.
+
+## Verification and remaining physical validation
+
+Regression tests exercise watchdog latching, duplicate/reordered operations,
+exclusive ownership, bounded speed, probe motion/fault/velocity interlocks,
+homing/reconnect behavior, actions and cancellation, ADC freshness/hysteresis,
+revision conflicts, browser/ROS integration and shutdown. The production controllers
+are tested with the production driver and an in-memory bus. Both launch entry
+points must start and stop without ROS exceptions in the isolated container.
+
+These checks do not establish physical timing margins, real homing accuracy, motor
+loads or wheel-velocity availability on a particular PX4. Confirm those on a
+supported/lifted vehicle with RC override ready after simulation checks pass.
+ROS command access uses the deployment's existing trusted-network model.

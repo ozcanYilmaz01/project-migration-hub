@@ -1,0 +1,34 @@
+# The docker build will install pip packages from this requirements file.
+#
+# If you've added a package that has a requirements file then it is 
+# possible to nest requirements, e.g.
+#
+#   -r src/svea_core/requirements.txt
+#
+# You can read more here: https://pip.pypa.io/en/stable/reference/requirements-file-format/#requirements-file-format
+
+numpy<2
+matplotlib # For plotting the localization results and map
+pillow # for coloring the markers
+
+# This is for MPC
+casadi==3.6.7
+
+# These are for RTK-GPS
+pyserial
+pyubx2
+geopy
+utm
+
+# Operator dashboard server (peaceofmine_operator gateway)
+aiohttp>=3.9,<4
+pyudev>=0.24,<1
+# Install the resolver alongside aiohttp; the base image's system copy may
+# be incomplete and can otherwise prevent aiohttp (and the GUI) importing.
+aiodns>=3.2,<5
+
+# ArbotiX / MX-64 arm transport (Protocol 1.0)
+dynamixel-sdk==3.7.31
+
+# ADS1115 operator sensor acquisition
+smbus2>=0.4,<1

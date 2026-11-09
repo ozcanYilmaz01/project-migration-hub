@@ -1,0 +1,363 @@
+// Independent arm/probe settings views; all commands go through the ROS web bridge.
+let servoRequestSequence = 0;
+function createServoSettings(role) {
+  const $ = id => document.getElementById(role === 'probe' && id.startsWith('arm-') ? id.replace(/^arm-/, 'probe-servo-') : id);
+  let loadChart = null;
+  let loadHistory = [];
+  let loadSample = null;
+  let loadServo = null;
+  let loadLatest = null, loadActive = false;
+  function updateLoadChart(servo, active, animate = false) {
+    loadLatest = servo; loadActive = active;
+    if (animate && (!$('settings-dialog').open || document.getElementById(`settings-${role}`).hidden)) return;
+    if (animate && loadChart && scrollTimeChart(loadChart, performance.now())) return;
+    const now = performance.now();
+    const key = `${servo.serial_port || ''}:${servo.servo_id}`;
+    if (!state.connected || (active && (!servo.connected || loadServo !== key))) {
+      loadHistory = []; loadSample = null;
+      if (active) loadServo = key;
+    }
+    if (state.connected && active && servo.connected && Number.isFinite(servo.sample_time)
+        && servo.sample_time !== loadSample && Number.isFinite(servo.load_percent)) {
+      if (loadHistory.length && now - loadHistory.at(-1).at > 600)
+        loadHistory.push({at: now - 1, value: null});
+      loadHistory.push({at: now, value: servo.load_percent});
+      loadSample = servo.sample_time;
+    }
+    loadHistory = loadHistory.filter(sample => now - sample.at <= 60000).slice(-600);
+    const panel = document.getElementById(`settings-${role}`);
+    if (!$('settings-dialog').open || panel.hidden) return;
+    if (!loadChart) loadChart = new Chart($('arm-load-history'), {
+      type: 'line', data: {datasets: [{label: 'Estimated load (%)', data: [],
+        borderColor: '#76b9ff', borderWidth: 2, pointRadius: 0, spanGaps: false},
+        ...(role === 'probe' ? [1, -1].map(sign => ({label: `${sign > 0 ? '+' : '−'}Contact threshold`,
+          data: [], borderColor: '#ffb86b', borderDash: [6, 4], borderWidth: 1, pointRadius: 0})) : [])]},
+      options: {responsive: true, maintainAspectRatio: false, animation: false,
+        parsing: false, plugins: {legend: {display: false}},
+        scales: {
+          x: {type: 'linear', min: -60, max: 0, title: {display: true, text: 'Seconds ago', color: '#b7c4d8'},
+            ticks: {color: '#b7c4d8', callback: value => Math.abs(value)}},
+          y: {min: -100, max: 100, title: {display: true, text: 'Signed load (%)', color: '#b7c4d8'},
+            ticks: {color: '#b7c4d8'}},
+        }},
+    });
+    loadChart.data.datasets[0].data = loadHistory.map(sample => ({x: (sample.at - now) / 1000, y: sample.value}));
+    if (role === 'probe') {
+      const threshold = state.settings?.probe_stroke?.home_load_percent;
+      [1, -1].forEach((sign, index) => {
+        loadChart.data.datasets[index + 1].data = Number.isFinite(threshold) && threshold >= 10 && threshold <= 60
+          ? [{x: -60, y: sign * threshold}, {x: 0, y: sign * threshold}] : [];
+      });
+    }
+    loadChart.$scrollPixels = 0;
+    loadChart.$renderedAt = now;
+    loadChart.update('none');
+  }
+  let armHoldTimer = null;
+  let armSliderMoving = false;
+  let armSliderDragging = false;
+  let armSliderTarget = null;
+  let armPending = null;
+  function setArmFeedback(text, kind = 'pending') {
+    $('arm-feedback').textContent = text;
+    $('arm-feedback').dataset.kind = kind;
+  }
+  function armCommand(action, values = {}, feedback = true) {
+    const payload = {type: 'arm_servo', action, role, ...values};
+    if (feedback) {
+      payload.request_id = `${Date.now()}-${++servoRequestSequence}`;
+      armPending = {id: payload.request_id, action, at: performance.now()};
+      setArmFeedback(({select: 'Selecting servo…', capture: 'Recording position…', configure: 'Applying limits…', configure_direction: 'Saving probe direction…', stop: 'Stopping…', jog: 'Starting jog…', position: 'Moving to slider target…', move: 'Starting movement…'})[action] || 'Sending command…');
+    }
+    send(payload);
+  }
+  function armControlCommand(payload, confirmation, predicate) {
+    const id = `${Date.now()}-${++servoRequestSequence}`;
+    armPending = {id, at: performance.now(), predicate, confirmation};
+    setArmFeedback('Waiting for dashboard confirmation…');
+    send({...payload, request_id:id});
+  }
+  function armAngle(position) {
+    return Number.isFinite(position) ? `${(position * 360 / 4096).toFixed(1)}°` : '—';
+  }
+  function reversedArmCaptures(captured) {
+    // Earlier dashboards recorded the physical left stop under "minimum".
+    return Number.isFinite(captured?.minimum) && Number.isFinite(captured?.maximum) && captured.minimum > captured.maximum;
+  }
+  function armLimits(servo) {
+    const captured = {...servo.captured};
+    if (reversedArmCaptures(captured)) {
+      [captured.minimum, captured.maximum] = [captured.maximum, captured.minimum];
+    }
+    const values = {};
+    for (const point of ['minimum', 'center', 'maximum']) values[point] = captured[point] ?? servo.calibration?.[point];
+    let error = '';
+    if (!Object.values(values).every(Number.isFinite)) error = 'Record the missing positions before saving.';
+    else if (values.minimum >= values.maximum) error = 'Record both endpoints. Left must have a higher encoder angle than Right.';
+    else if (values.center <= values.minimum || values.center >= values.maximum)
+      error = `Centre must be between Right (${armAngle(values.minimum)}) and Left (${armAngle(values.maximum)}). Check the captured positions.`;
+    return {captured, values, error};
+  }
+  function stopArmMove() {
+    armSliderMoving = false;
+    if (armHoldTimer !== null) {
+      clearInterval(armHoldTimer);
+      armHoldTimer = null;
+      if (state.connected && state.drive.you_control_owner) armCommand('stop');
+    }
+  }
+  function updateArmSettings() {
+    const live = state.actuators?.[role] || state.arm_servo || {};
+    const active = state.actuators?.[role] != null || (live.active_role || 'arm') === role;
+    const servo = active ? live : {serial_connected: live.serial_connected, scanning: live.scanning, discovered_servos: live.discovered_servos, servo_id: live.role_ids?.[role] ?? (role === 'probe' ? 2 : live.servo_id), reason: `Select the ${role} servo to load its calibration and telemetry.`};
+    updateLoadChart(servo, active);
+    const servoSelect = $('arm-servo-id');
+    const ids = servo.discovered_servos || [];
+    const signature = JSON.stringify(ids);
+    if (servoSelect.dataset.discovery !== signature) {
+      const previous = servoSelect.value;
+      servoSelect.replaceChildren(new Option(servo.scanning ? 'Scanning for servos…' : 'Select a detected servo', ''));
+      ids.forEach(id => servoSelect.add(new Option(`Servo ${id}`, String(id))));
+      const assignedId = live.role_ids?.[role] ?? servo.servo_id;
+      servoSelect.value = ids.includes(Number(previous)) && previous !== '' ? previous
+        : ids.includes(assignedId) ? String(assignedId) : '';
+      servoSelect.dataset.discovery = signature;
+    }
+    const owner = state.connected && state.drive.you_control_owner;
+    const directionPending = armPending?.action === 'configure_direction';
+    $('arm-reconnect').disabled = !owner || Boolean(live.scanning || live.torque || live.sweeping) || armHoldTimer !== null;
+    if (armPending) {
+      const acknowledgement = live.last_command;
+      if (armPending.id && acknowledgement?.request_id === armPending.id) {
+        setArmFeedback(acknowledgement.message, acknowledgement.success ? 'success' : 'error');
+        armPending = null;
+      } else if (armPending.predicate?.()) {
+        setArmFeedback(armPending.confirmation, 'success'); armPending = null;
+      } else if (performance.now() - armPending.at > 4000) {
+        setArmFeedback('No confirmation received. Check the driver connection and retry.', 'error'); armPending = null;
+      }
+    }
+    const ready = owner && state.drive.armed && state.safety?.servo_allowed && servo.connected && !(role === 'probe' && directionPending);
+    const slider = $('arm-position-slider');
+    if (servo.connected) {
+      slider.min = servo.position_minimum ?? servo.eeprom_minimum ?? 0;
+      slider.max = servo.position_maximum ?? servo.eeprom_maximum ?? 4095;
+      if (!armSliderDragging) slider.value = servo.position;
+    }
+    slider.disabled = !ready || (armHoldTimer !== null && !armSliderMoving);
+    if (armSliderMoving && !armSliderDragging && servo.torque && Math.abs(servo.position - armSliderTarget) <= 3
+        && servo.goal_position === armSliderTarget) stopArmMove();
+    $('arm-position-label').textContent = servo.connected ? armAngle(Number(slider.value)) : '—';
+    $('arm-jog-speed').disabled = armHoldTimer !== null && !armSliderMoving;
+
+    if (role === 'arm') {
+      $('arm-servo-status').textContent = !state.connected ? 'Dashboard disconnected' : servo.connected
+        ? `Connected${Number.isInteger(servo.servo_id) ? ' · ID ' + servo.servo_id : ''}`
+        : servo.serial_connected ? 'Adapter connected · motor offline' : 'Disconnected';
+    } else $('arm-servo-status').textContent = servo.reason || 'Servo driver not running';
+    $('arm-servo-position').textContent = servo.connected ? `${armAngle(servo.position)} (${servo.position ?? '—'} ticks)` : servo.serial_connected ? 'Adapter connected · no servo selected' : 'Disconnected';
+    $('arm-servo-details').textContent = servo.connected ? `Servo ${servo.servo_id} · ${servo.serial_port || 'serial adapter'}` : servo.serial_connected ? `Select the ID of the ${role} servo, then click Select servo.` : servo.serial_port ? `Servo bus: ${servo.serial_port}` : 'Servo bus unavailable. Check the hardware connection.';
+    const number = (value, digits = 1, unit = '') => Number.isFinite(value) ? `${value.toFixed(digits)}${unit}` : '—';
+    const metric = (id, value) => { $(id).textContent = servo.connected ? value : '—'; };
+    metric('arm-goal', armAngle(servo.goal_position));
+    metric('arm-torque', typeof servo.torque === 'boolean' ? (servo.torque ? 'On' : 'Off') : '—');
+    metric('arm-load', number(servo.load_percent, 1, ' %'));
+    metric('arm-torque-limit', number(servo.torque_limit_percent, 1, ' %'));
+    metric('arm-max-torque', number(servo.max_torque_percent, 1, ' %'));
+    metric('arm-current', number(servo.current_a, 3, ' A'));
+    metric('arm-speed', `${number(servo.speed_deg_s, 1, '°/s')} / ${servo.speed_limit_deg_s === 0 ? 'Full speed' : number(servo.speed_limit_deg_s, 1, '°/s')}`);
+    metric('arm-moving', typeof servo.moving === 'boolean' ? (servo.moving ? 'Yes' : 'No') : '—');
+    metric('arm-power', `${number(servo.voltage, 1, ' V')} / ${number(servo.temperature_c, 0, ' °C')}`);
+    metric('arm-model', `${servo.model ?? '—'} / ${servo.firmware ?? '—'}`);
+    $('arm-px4').textContent = state.safety?.servo_allowed ? 'RC permits motion' : state.safety?.servo_reason || 'RC blocks motion';
+    $('arm-calibration-stop').disabled = !owner;
+    const selectionBlocked = !state.connected ? 'Connect to the dashboard first.'
+      : !owner ? 'Take control to configure the servo.'
+      : live.torque ? 'Stop the active servo before changing the servo ID.'
+      : !servo.serial_connected ? 'Waiting for the servo serial adapter.' : '';
+    $('arm-calibration-access').textContent = owner && active && state.drive.calibrating ? role === 'probe' ? 'Home, extend, then save measured travel.' : 'Jog, release, then record the limits.' : selectionBlocked || 'Select a servo to configure it.';
+    $('arm-take-control').hidden = owner;
+    $('arm-take-control').disabled = !state.connected;
+    $('arm-select-id').disabled = Boolean(selectionBlocked) || servoSelect.value === '';
+    $('arm-select-id').title = selectionBlocked || 'Select the servo ID; position updates automatically.';
+    const canRecord = owner && servo.connected && !servo.torque && armHoldTimer === null;
+    if (role === 'probe') {
+      const probe = live.probe || {};
+      const travel = (servo.reverse ? 1 : -1) * (servo.position - servo.home_position);
+      const reverse = $('arm-reverse');
+      reverse.disabled = !canRecord || Boolean(servo.moving || probe.active || probe.holding || probe.cycle_active || armPending) || typeof servo.reverse !== 'boolean';
+      if (!directionPending) reverse.checked = servo.reverse === true;
+      $('arm-save-extension').disabled = !canRecord || directionPending || !Number.isFinite(servo.home_position) || !Number.isFinite(travel) || travel <= 3;
+      $('arm-extension-status').textContent = probe.calibrated
+        ? `Saved maximum: ${probe.max_depth_mm} mm · retained after restart` : 'Maximum extension not calibrated';
+      if ($('arm-max-extension').dataset.saved !== String(probe.max_depth_mm)) {
+        $('arm-max-extension').value = probe.max_depth_mm || '';
+        $('arm-max-extension').dataset.saved = String(probe.max_depth_mm);
+      }
+      $('arm-enable-multiturn').disabled = !canRecord || servo.position_mode === 'multi-turn';
+      $('arm-position-mode').textContent = servo.connected ? servo.position_mode === 'multi-turn'
+        ? 'Multi-turn · −7 to +7 shaft revolutions' : 'Joint mode · enable multi-turn for travel beyond one revolution' : 'Select probe to read position mode';
+      $('arm-home-status').textContent = servo.connected ? servo.home_status || 'Not homed' : 'Not homed · connect probe';
+      $('arm-home-travel').textContent = servo.connected && Number.isFinite(servo.home_position)
+        ? `${(travel * 360 / 4096).toFixed(1)}° from top (shaft)` : 'Home required';
+    }
+    {
+      $('arm-apply-motion').disabled = !canRecord;
+      const motionSignature = JSON.stringify([servo.motion_speed_limit, servo.sweep_acceleration_deg_s2]);
+      if ($('arm-apply-motion').dataset.profile !== motionSignature) {
+        $('arm-max-speed').value = ((servo.motion_speed_limit || 80) * .684).toFixed(3);
+        $('arm-acceleration').value = (servo.sweep_acceleration_deg_s2 || 40).toFixed(3);
+        $('arm-apply-motion').dataset.profile = motionSignature;
+      }
+    }
+    $('arm-jog-left').disabled = $('arm-jog-right').disabled = !ready;
+    const jogReason = !state.connected ? 'Dashboard disconnected'
+      : !owner ? 'Take control first'
+      : !servo.connected ? 'Servo not connected'
+      : !state.safety?.servo_allowed ? state.safety?.servo_reason || 'RC blocks motion'
+      : armHoldTimer !== null ? 'Jog command held · release to stop'
+      : role === 'probe' ? 'Ready · hold up to retract or down to extend' : 'Ready · hold left or right to move';
+    $('arm-jog-status').textContent = jogReason;
+    $('arm-jog-status').dataset.ready = String(Boolean(ready));
+    $('arm-jog-left').title = $('arm-jog-right').title = jogReason;
+    if (role === 'arm') {
+      const {captured, error} = armLimits(servo);
+      $('arm-limits-validation').textContent = error;
+      $('arm-apply-limits').disabled = !canRecord || Boolean(error) || armPending?.action === 'capture' || armPending?.action === 'configure';
+      for (const point of ['minimum', 'center', 'maximum']) {
+        const saved = servo.calibration?.[point];
+        $(`arm-capture-${point}`).disabled = !canRecord;
+        const move = $(`arm-move-${point}`);
+        move.disabled = !ready || !Number.isFinite(saved);
+        move.title = Number.isFinite(saved) ? `Hold to move to saved ${armAngle(saved)}.` : 'Save this limit first.';
+        $(`arm-recorded-${point}`).textContent = armAngle(captured[point]);
+        $(`arm-saved-${point}`).textContent = armAngle(saved);
+      }
+    }
+    if (!ready) stopArmMove();
+    if (role === 'probe') return;
+    if (servo.calibration) {
+      const escape = value => String(value).replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;');
+      $('arm-launch-xml').value = [
+        '<arg name="use_arm_servo" default="true"/>',
+        `<arg name="arm_serial_port" default="${escape(servo.serial_port || '')}"/>`,
+        `<arg name="${role}_servo_id" default="${servo.servo_id}"/>`,
+        ...['minimum', 'center', 'maximum'].map(point => `<arg name="${role}_${point}" default="${servo.calibration[point]}"/>`),
+        ...(role === 'arm' ? [`<arg name="arm_speed" default="${servo.motion_speed_limit || 20}"/>`] : []),
+        ...(role === 'arm' ? [`<arg name="arm_sweep_endpoint_tolerance_deg" default="${servo.sweep_endpoint_tolerance_deg ?? 2.0}"/>`] : []),
+        ...(role === 'arm' ? [`<arg name="arm_sweep_acceleration_deg_s2" default="${servo.sweep_acceleration_deg_s2 || 40}"/>`] : []),
+      ].join('\n');
+    } else $('arm-launch-xml').value = 'Record and apply all three positions to generate launch XML.';
+  }
+  function initializeArmSettings() {
+    if (role === 'probe') $('arm-save-extension').onclick = () => {
+      if (!$('arm-max-extension').reportValidity()) return;
+      armCommand('save_probe_extension', {max_extension_mm: Number($('arm-max-extension').value)});
+    };
+    if (role === 'probe') $('arm-reverse').onchange = () => {
+      armCommand('configure_direction', {enabled: $('arm-reverse').checked});
+      updateArmSettings();
+    };
+    if (role === 'probe') $('arm-enable-multiturn').onclick = () => armCommand('enable_multiturn');
+    {
+      $('arm-apply-motion').onclick = () => {
+        if (!$('arm-max-speed').reportValidity() || !$('arm-acceleration').reportValidity()) return;
+        armCommand('configure_motion', {max_speed_deg_s: Number($('arm-max-speed').value),
+          acceleration_deg_s2: Number($('arm-acceleration').value)});
+      };
+    }
+    $('arm-reconnect').onclick = () => armCommand('reconnect');
+    $('arm-take-control').onclick = () => armControlCommand({type: 'take_control'}, 'Control acquired. Select a servo; hold a movement control when the RC permits.', () => state.drive.you_control_owner);
+    $('arm-servo-id').onchange = updateArmSettings;
+    $('arm-select-id').onclick = () => {
+      if ($('arm-servo-id').value !== '') armCommand('select', {servo_id: Number($('arm-servo-id').value)});
+    };
+    $('arm-calibration-stop').onclick = () => { stopArmMove(); armCommand('stop'); };
+    function bindHold(button, action, values) {
+      const start = () => {
+        if (button.disabled) return;
+        stopArmMove();
+        const selected = typeof values === 'function' ? values() : values;
+        if (action === 'jog' && (['arm-jog-speed'].some(id => !$(id).checkValidity() || !Number.isFinite(Number($(id).value)) || Number($(id).value) <= 0))) {
+          setArmFeedback('Enter a positive jog speed.', 'error'); return;
+        }
+        const held = {...selected, held: true};
+        armCommand(action, held);
+        armHoldTimer = setInterval(() => armCommand(action, held, false), 80);
+        updateArmSettings();
+      };
+      button.onpointerdown = event => { event.preventDefault(); button.setPointerCapture(event.pointerId); start(); };
+      button.onpointerup = stopArmMove;
+      button.onpointercancel = button.onlostpointercapture = stopArmMove;
+      button.onkeydown = event => { if ([' ', 'Enter'].includes(event.key) && !event.repeat) { event.preventDefault(); start(); } };
+      button.onkeyup = event => { if ([' ', 'Enter'].includes(event.key)) stopArmMove(); };
+      button.onblur = stopArmMove;
+    }
+    const jogOptions = () => ({speed_deg_s: Number($('arm-jog-speed').value)});
+    const leftDirection = role === 'arm' ? 1 : -1;
+    bindHold($('arm-jog-left'), 'jog', () => ({direction:leftDirection, ...jogOptions()}));
+    bindHold($('arm-jog-right'), 'jog', () => ({direction:-leftDirection, ...jogOptions()}));
+    const positionSlider = $('arm-position-slider');
+    positionSlider.onpointerdown = () => { armSliderDragging = true; };
+    positionSlider.onpointerup = positionSlider.onpointercancel = positionSlider.onlostpointercapture = () => {
+      armSliderDragging = false; updateArmSettings();
+    };
+    positionSlider.onkeydown = event => {
+      if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key)) armSliderDragging = true;
+    };
+    positionSlider.onkeyup = positionSlider.onblur = () => { armSliderDragging = false; updateArmSettings(); };
+    positionSlider.oninput = () => {
+      if (positionSlider.disabled) return;
+      armSliderTarget = Number(positionSlider.value);
+      $('arm-position-label').textContent = armAngle(armSliderTarget);
+      const target = () => ({position: armSliderTarget, held: true});
+      if (armSliderMoving) {
+        armCommand('position', target(), false);
+        return;
+      }
+      stopArmMove();
+      armSliderMoving = true;
+      armCommand('position', target());
+      armHoldTimer = setInterval(() => armCommand('position', target(), false), 80);
+      updateArmSettings();
+    };
+    for (const point of role === 'arm' ? ['minimum', 'center', 'maximum'] : []) {
+      const legacySlot = {minimum:'maximum', center:'center', maximum:'minimum'}[point];
+      $(`arm-capture-${point}`).onclick = () => {
+        const servo = state.actuators?.arm || state.arm_servo || {};
+        // Keep the other capture intact on a running controller with old slots.
+        armCommand('capture', {point:reversedArmCaptures(servo.captured) ? legacySlot : point});
+        updateArmSettings();
+      };
+      bindHold($(`arm-move-${point}`), 'move', {point});
+    }
+    if (role === 'arm') $('arm-apply-limits').onclick = () => {
+      const servo = state.actuators?.[role] || state.arm_servo || {};
+      const {values, error} = armLimits(servo);
+      if (error || $('arm-apply-limits').disabled) return;
+      armCommand('configure', values);
+      updateArmSettings();
+    };
+    const releaseArmSettings = () => {
+      stopArmMove();
+      if (state.drive.calibrating && state.drive.you_control_owner && (state.arm_servo?.active_role || 'arm') === role) {
+        armCommand('stop');
+        send({type: 'calibration_end'});
+      }
+    };
+    $('settings-dialog').querySelector('form').addEventListener('submit', releaseArmSettings);
+    $('settings-dialog').addEventListener('close', releaseArmSettings);
+    window.addEventListener('blur', stopArmMove);
+    document.addEventListener('visibilitychange', () => { if (document.hidden) stopArmMove(); });
+  }
+
+  return {draw() { if (loadLatest) updateLoadChart(loadLatest, loadActive, true); }, update: updateArmSettings, initialize: initializeArmSettings, stop: stopArmMove, error(message, requestId) {
+    if (!requestId || armPending?.id !== requestId) return false;
+    armPending = null; setArmFeedback(message, 'error'); return true;
+  }};
+}
+const servoSettings = [createServoSettings('arm'), createServoSettings('probe')];
+function updateArmSettings() { servoSettings.forEach(panel => panel.update()); }
+function initializeArmSettings() { servoSettings.forEach(panel => panel.initialize()); }
+function stopArmMove() { servoSettings.forEach(panel => panel.stop()); }
+

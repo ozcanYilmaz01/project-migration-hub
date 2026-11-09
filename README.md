@@ -1,29 +1,28 @@
-# Welcome to your Lovable project
+# PeaceOfMine drive dashboard
 
-This project was built with [Lovable](https://lovable.dev).
+## Start on the car
 
-## Build with Lovable
-
-Open your project in the [Lovable editor](https://lovable.dev) and keep building.
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: connect the project to GitHub and every change made in Lovable is committed straight to your repository.
-- **Full ownership**: this code is yours. Push to your repository and your changes sync back into Lovable, ready for your next prompt.
-
-## Development
-
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+Run these commands on the car.
 
 ```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
-npm run dev
+git clone https://github.com/nilskiefer/peaceofmine-drive-dashboard.git
+cd peaceofmine-drive-dashboard
+cd car
+util/build
+util/run
 ```
 
-## Built with
+In the container shell that opens, start the operator dashboard.
 
-- TanStack Start
-- TypeScript
-- React
-- Tailwind CSS
+```sh
+ros2 launch peaceofmine_operator operator.launch.xml is_sim:=false
+```
+
+On the device you’ll use to drive, turn on Tailscale and open [svea-mine.tailead4c5.ts.net:8080](http://svea-mine.tailead4c5.ts.net:8080/).
+
+<details>
+<summary>Develop the dashboard preview</summary>
+
+From the repository root, run `npm install` and `npm run dev`, or use the [Lovable editor](https://lovable.dev/projects/a9d52909-a44f-4f8f-a5af-f9a6af82785b). Changes pushed to `main` sync to Lovable. [Open the hosted preview](https://peaceofmine-drive-dashboard.lovable.app).
+
+</details>

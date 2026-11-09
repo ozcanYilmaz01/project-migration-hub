@@ -1,0 +1,4 @@
+[{"capability":"code","source":"archive","outcome":"copied","status":"verified","next_action":null},
+{"capability":"schema/records/auth","source":"none detected","outcome":"n/a","status":"verified","next_action":null},
+{"capability":"car software (car/)","source":"archive","outcome":"kept as files; runs on the car, not in Lovable","status":"accepted","next_action":"test on real car"},
+{"capability":"NTRIP secrets","source":"car/DevTools/gnss_viewer","outcome":"used on car only","status":"accepted","next_action":null}]
