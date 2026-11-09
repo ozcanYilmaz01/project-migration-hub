@@ -386,8 +386,12 @@ main { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: var(--gap); 
 .ready-item::before { content: ""; width: .5rem; height: .5rem; border-radius: 50%; background: var(--faint); }
 .ready-item[data-ok=true] { color: var(--text); }
 .ready-item[data-ok=true]::before { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-.ready-next { margin: 0; flex: 1 1 auto; min-width: 6rem; font-size: var(--fs-sm); font-weight: 600; color: var(--warn); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ready-next { margin: 0; flex: 0 1 auto; min-width: 0; font-size: var(--fs-sm); font-weight: 600; color: var(--warn); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ready-next[data-ok=true] { color: var(--accent); }
+@media (max-width: 1150px) {
+  .topbar #environment-label { display: none; }
+  .ready-list { gap: var(--s2); }
+}
 .brand { display: flex; align-items: baseline; gap: var(--s2); margin-right: auto; white-space: nowrap; }
 #environment-label { font-size: var(--fs-xs); color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
 .topbar-status, .topbar-actions { display: flex; align-items: center; gap: var(--s2); }
