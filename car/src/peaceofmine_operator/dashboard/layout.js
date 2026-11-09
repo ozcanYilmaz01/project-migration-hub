@@ -192,8 +192,8 @@
     if (state.probe?.cycle_active || ['CONFIRMED', 'PROBING'].includes(phase)) return 'probe';
     if (phase === 'CONFIRMING') return 'align';
     // A search alert (set by app.js on <body>) means metal was found: move on to Check.
+    if (sweepRestarted()) hitSeen = false;
     if (document.body.dataset.searchAlert) hitSeen = true;
-    if (state.detector?.sweep_enabled && document.body.dataset.searchAlert !== 'active') hitSeen = hitSeen && !sweepRestarted();
     return hitSeen ? 'align' : 'sweep';
   }
   function missionSentence(step, btn) {
