@@ -822,3 +822,41 @@ body[data-search-alert=active] #mode-align-btn:not(:disabled) { border-color: va
 
 /* Laptop (13") fit: keep the larger touch targets but trim outer padding. */
 @media (max-height: 820px) { :root { --pad: var(--s2); } }
+
+/* ===================================================== Welcome guide === */
+.help-btn { width: var(--control-h); padding: 0; border-radius: 50%; font-size: var(--fs-md); }
+.welcome { width: min(26rem, calc(100vw - 2rem)); padding: var(--s4); border: 0; border-radius: var(--radius); background: var(--surface); color: var(--text); }
+.welcome::backdrop { background: var(--overlay); }
+.welcome-art { display: grid; place-items: center; height: 8rem; margin-bottom: var(--s3); border-radius: var(--radius-sm); background: var(--bg-sunken); }
+.welcome-art svg { width: 12rem; height: auto; }
+.welcome-art .art-fill { fill: var(--surface-2); stroke: var(--muted); stroke-width: 2; }
+.welcome-art .art-dark { fill: var(--bg); stroke: var(--muted); stroke-width: 2; }
+.welcome-art .art-line, .welcome-art path.art-line { fill: none; stroke: var(--muted); stroke-width: 2; }
+.welcome-art .art-accent { fill: var(--accent); }
+.welcome-art .art-keys rect { fill: var(--surface-2); stroke: var(--muted); stroke-width: 2; }
+.welcome-art .art-keys rect.art-accent { fill: var(--accent); stroke: var(--accent); }
+.welcome-art .art-alert { fill: var(--warn-soft); stroke: var(--warn); stroke-width: 3; }
+.welcome-art .art-steps circle { fill: var(--accent); }
+.welcome-art .art-steps circle.art-ready { fill: var(--ready); }
+.welcome-art .art-text { fill: var(--text); font: 700 9px var(--font); text-anchor: middle; }
+.welcome-art .art-big { fill: var(--warn); font: 700 28px var(--font); text-anchor: middle; }
+.welcome-dots { display: flex; gap: var(--s2); justify-content: center; margin: 0 0 var(--s3); padding: 0; list-style: none; }
+.welcome-dots li { width: var(--s2); height: var(--s2); border-radius: 50%; background: var(--line-strong); }
+.welcome-dots li[data-on=true] { background: var(--accent); }
+.welcome-title { margin-bottom: var(--s2); color: var(--text); font-size: var(--fs-lg); letter-spacing: 0; text-transform: none; }
+.welcome-text { min-height: 3em; color: var(--muted); font-size: var(--fs-md); line-height: 1.5; }
+.welcome-actions { display: flex; gap: var(--s2); margin-top: var(--s4); }
+.welcome-spacer { flex: 1; }
+
+/* WASD hint on the camera while keyboard driving is captured */
+.key-hint {
+  position: absolute; z-index: 2; left: 50%; bottom: var(--s3); transform: translateX(-50%);
+  display: grid; grid-template-columns: repeat(3, 2rem); grid-template-areas: ". w ." "a s d"; gap: var(--s1); pointer-events: none;
+}
+.key-hint kbd {
+  display: grid; place-items: center; height: 2rem; border-radius: var(--radius-sm);
+  background: var(--overlay); color: var(--muted); font: 700 var(--fs-sm) var(--mono);
+}
+.key-hint [data-key=w] { grid-area: w; } .key-hint [data-key=a] { grid-area: a; }
+.key-hint [data-key=s] { grid-area: s; } .key-hint [data-key=d] { grid-area: d; }
+.key-hint kbd[data-on=true] { background: var(--accent); color: var(--on-accent); }

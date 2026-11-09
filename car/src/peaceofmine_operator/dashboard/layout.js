@@ -314,6 +314,7 @@
     if (off) manualFocus = null;
     applyFocus();
     $('probe-camera-empty').hidden = probeCameraShown();
+    keyHint.hidden = !$('input-lock').classList.contains('locked');
     renderChip();
     renderReady();
     renderMission();
@@ -323,6 +324,50 @@
     for (const id of fullTextIds) { const el = $(id); if (el && el.title !== el.textContent) el.title = el.textContent; }
     for (const el of document.querySelectorAll('.readouts dd')) { if (el.title !== el.textContent) el.title = el.textContent; }
   }
+
+  /* ------------------------------------------------------ Welcome guide --- */
+  const guideSteps = [
+    ['Get ready', 'Turn on the car and flip the remote\'s switch to ROS. Then press Start driving at the top.'],
+    ['Drive and search', 'Click the camera and drive with W A S D. Press Search for metal and drive slowly.'],
+    ['Check and mark', 'When the metal alert appears, stop. Follow the steps on the right to check, probe and mark the spot.'],
+  ];
+  const guide = $('welcome');
+  let guideStep = 0;
+  function renderGuide() {
+    const [title, text] = guideSteps[guideStep];
+    $('welcome-title').textContent = title;
+    $('welcome-text').textContent = text;
+    guide.querySelectorAll('[data-art]').forEach(svg => { svg.hidden = svg.dataset.art !== String(guideStep + 1); });
+    guide.querySelectorAll('.welcome-dots li').forEach((li, i) => { li.dataset.on = i === guideStep; });
+    $('welcome-back').hidden = guideStep === 0;
+    $('welcome-next').textContent = guideStep === guideSteps.length - 1 ? 'Start' : 'Next';
+  }
+  function closeGuide() {
+    try { localStorage.setItem('pom.welcomeSeen', '1'); } catch (_) { /* storage blocked */ }
+    if (guide.open) guide.close();
+  }
+  function openGuide() { guideStep = 0; renderGuide(); if (!guide.open) guide.showModal(); }
+  $('help-open').addEventListener('click', openGuide);
+  $('welcome-skip').addEventListener('click', closeGuide);
+  $('welcome-back').addEventListener('click', () => { guideStep = Math.max(0, guideStep - 1); renderGuide(); });
+  $('welcome-next').addEventListener('click', () => {
+    if (guideStep >= guideSteps.length - 1) { closeGuide(); return; }
+    guideStep += 1; renderGuide();
+  });
+  guide.addEventListener('cancel', () => closeGuide());
+  let seen = false;
+  try { seen = localStorage.getItem('pom.welcomeSeen') === '1'; } catch (_) { seen = false; }
+  if (!seen) openGuide();
+
+  /* ------------------------------------------------------ WASD key hint --- */
+  const keyHint = $('key-hint');
+  function lightKey(event, on) {
+    const k = keyHint.querySelector(`[data-key="${(event.key || '').toLowerCase()}"]`);
+    if (k) k.dataset.on = on;
+  }
+  document.addEventListener('keydown', e => lightKey(e, true));
+  document.addEventListener('keyup', e => lightKey(e, false));
+  window.addEventListener('blur', () => keyHint.querySelectorAll('kbd').forEach(k => { k.dataset.on = false; }));
   tick();
   setInterval(tick, 250);
 })();
