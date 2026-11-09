@@ -177,18 +177,24 @@
     probe: "The probe gently pushes into the ground at a few spots around the hit.",
     mark: "The pump sprays a mark on the ground so the spot can be found again.",
   };
-  let pickedStep = null, autoStep = null;
+  let pickedStep = null, autoStep = null, hitSeen = false, lastSweep = false;
+  function sweepRestarted() { // sweeping again after a hit means the operator went back to searching
+    const on = !!state.detector?.sweep_enabled, restarted = on && !lastSweep;
+    lastSweep = on;
+    return restarted && !document.body.dataset.searchAlert;
+  }
   for (const dot of document.querySelectorAll('[data-mission-step]'))
-    dot.addEventListener('click', () => { pickedStep = dot.dataset.missionStep; renderMission(); });
+    dot.addEventListener('click', () => { pickedStep = dot.dataset.missionStep; if (pickedStep === 'sweep') hitSeen = false; renderMission(); });
   $('mission-open-settings').addEventListener('click', () => $('settings').click());
   function missionAutoStep() {
     const phase = state.inspection?.phase || 'IDLE';
     if (phase === 'COMPLETE') return 'mark';
     if (state.probe?.cycle_active || ['CONFIRMED', 'PROBING'].includes(phase)) return 'probe';
     if (phase === 'CONFIRMING') return 'align';
-    if (state.detector?.sweep_enabled) return 'sweep';
-    if (!$('mode-align-btn').disabled) return 'align';
-    return 'sweep';
+    // A search alert (set by app.js on <body>) means metal was found: move on to Check.
+    if (document.body.dataset.searchAlert) hitSeen = true;
+    if (state.detector?.sweep_enabled && document.body.dataset.searchAlert !== 'active') hitSeen = hitSeen && !sweepRestarted();
+    return hitSeen ? 'align' : 'sweep';
   }
   function missionSentence(step, btn) {
     const pill = $(`mode-${step}-pill`).textContent.trim();
