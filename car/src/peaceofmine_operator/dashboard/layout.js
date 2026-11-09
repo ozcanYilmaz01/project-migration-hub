@@ -281,6 +281,17 @@
       battTip, !live || !Number.isFinite(pct) ? '' : pct < 20 ? 'low' : pct < 40 ? 'strong' : 'good');
   }
 
+  /* Stop probe on the main screen only while the probe moves; Advanced nav opens for its active tab. */
+  function renderProbeLive() {
+    const p = state.probe || {};
+    const moving = !!p.cycle_active || (Number.isFinite(p.depth_mm) && Number.isFinite(p.target_mm) && Math.abs(p.depth_mm - p.target_mm) > 1);
+    const live = $('probe-live');
+    const show = state.connected && (moving || !$('probe-cycle-alert').classList.contains('hidden'));
+    if (live.hidden === show) live.hidden = !show;
+    const adv = $('setup-nav-advanced');
+    if (!adv.open && adv.querySelector('.settings-tab.active')) adv.open = true;
+  }
+
   const fullTextIds = ['controller', 'controller-mapping', 'drive-block', 'drive-help', 'detector-detail', 'position', 'connection', 'ready-next'];
   function tick() {
     const next = missionStage();
@@ -300,6 +311,7 @@
     renderReady();
     renderMission();
     renderWords();
+    renderProbeLive();
     // one-line status texts are cut with an ellipsis; keep the full text on hover
     for (const id of fullTextIds) { const el = $(id); if (el && el.title !== el.textContent) el.title = el.textContent; }
     for (const el of document.querySelectorAll('.readouts dd')) { if (el.title !== el.textContent) el.title = el.textContent; }
