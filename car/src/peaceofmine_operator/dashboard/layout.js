@@ -306,8 +306,8 @@
     const volts = parseFloat($('signal').textContent), alertLevel = parseFloat($('search-alert-level').value);
     const ok = state.connected && Number.isFinite(volts) && alertLevel > 0;
     const ratio = ok ? volts / alertLevel : 0;
-    $('meter-fill').style.width = Math.min(100, ratio * 80) + '%';
-    $('meter-fill').dataset.level = ratio >= 1 ? 'strong' : ratio >= .8 ? 'near' : '';
+    $('mission-meter-fill').style.width = Math.min(100, ratio * 80) + '%';
+    $('mission-meter-fill').dataset.level = ratio >= 1 ? 'strong' : ratio >= .8 ? 'near' : '';
     $('meter-word').textContent = !ok ? 'No signal yet' : ratio >= 1 ? 'Metal!' : ratio >= .8 ? 'Getting stronger' : 'Quiet';
     const rows = [...document.querySelectorAll('#target-log-body tr:not(.empty-row)')].slice(0, 3);
     const key = rows.map(r => r.textContent).join('|');
