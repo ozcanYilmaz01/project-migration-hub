@@ -905,3 +905,6 @@ main:has(> #link-lost:not([hidden])) { grid-template-rows: auto auto minmax(0, 1
 /* Numbered found-target pins on the field map */
 .leaflet-tooltip.target-pin { padding: 0 var(--s1); background: var(--bg-sunken); color: var(--warn); border: 0; box-shadow: none; font-size: var(--fs-sm); font-weight: 700; }
 .leaflet-tooltip.target-pin::before { display: none; }
+
+/* Probe camera is not used: kept in the page for app.js, never shown. */
+#probe-camera-panel, .probe-camera-card { display: none !important; }
