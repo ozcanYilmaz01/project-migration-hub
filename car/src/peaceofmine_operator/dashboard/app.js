@@ -693,6 +693,9 @@ function renderSearchAlertLevel() {
   if (key === searchAlertLevelKey) return;
   searchAlertLevelKey = key;
   if (document.activeElement !== field || field.disabled) field.value = Number.isFinite(volts) ? Number(volts.toFixed(6)) : '';
+  const quick = $('detector-alert-input');
+  quick.disabled = field.disabled;
+  if (document.activeElement !== quick || quick.disabled) quick.value = Number.isFinite(volts) ? Number(volts.toFixed(3)) : '';
   const value = voltageLabel(volts);
   const marker = $('alert-marker');
   marker.hidden = !enabled || !range || !Number.isFinite(volts) || volts < range.min || volts > range.max;
@@ -1918,6 +1921,12 @@ $('search-alert-level').onchange = event => {
   delete preferences.searchAlert.level;
   renderSearchAlertLevel();
   storeDisplaySettings();
+};
+$('detector-alert-input').onchange = event => {
+  const quick = event.target, field = $('search-alert-level');
+  if (!quick.reportValidity() || field.disabled) return;
+  field.value = quick.value;
+  field.onchange({target: field});
 };
 $('search-alert-level').onblur = () => {
   const volts = searchAlertVolts();
@@ -3214,6 +3223,54 @@ function detectorAxis(sensor, elapsed) {
   return Number.isFinite(low) ? signalBounds(low, high, (range.max - range.min) / 100, range.min, range.max) : range;
 }
 
+// Operator-chosen axis for the detector charts (view only, kept in this browser).
+const detectorAxisPref = (() => {
+  try { return JSON.parse(localStorage.getItem('pom.detectorAxis')) || {auto: true}; } catch { return {auto: true}; }
+})();
+function saveDetectorAxisPref() {
+  try { localStorage.setItem('pom.detectorAxis', JSON.stringify(detectorAxisPref)); } catch {}
+}
+function viewDetectorAxis(sensor, elapsed) {
+  const auto = detectorAxis(sensor, elapsed);
+  const {min, max} = detectorAxisPref;
+  if (detectorAxisPref.auto || !Number.isFinite(min) || !Number.isFinite(max) || max <= min) return auto;
+  return {min, max};
+}
+function renderDetectorAxisControls(sensor = state.detector.sensor || {}) {
+  const auto = detectorAxisPref.auto;
+  $('detector-autoscale').checked = auto;
+  for (const id of ['detector-axis-min', 'detector-axis-max']) {
+    const input = $(id);
+    input.disabled = auto;
+    if (auto || document.activeElement !== input) {
+      const axis = auto ? detectorAxis(sensor, 0) : detectorAxisPref;
+      const value = id.endsWith('min') ? axis.min : axis.max;
+      input.value = Number.isFinite(value) ? Number(value.toFixed(2)) : '';
+    }
+  }
+}
+function redrawDetectorCharts() {
+  renderDetectorAxisControls();
+  drawDetectorHistory();
+  drawDetectorDiagnostics();
+}
+$('detector-autoscale').onchange = event => {
+  detectorAxisPref.auto = event.target.checked;
+  if (!detectorAxisPref.auto && !Number.isFinite(detectorAxisPref.min)) {
+    const axis = detectorAxis(state.detector.sensor || {}, 0);
+    detectorAxisPref.min = axis.min; detectorAxisPref.max = axis.max;
+  }
+  saveDetectorAxisPref();
+  redrawDetectorCharts();
+};
+for (const id of ['detector-axis-min', 'detector-axis-max']) $(id).onchange = event => {
+  const value = event.target.valueAsNumber;
+  if (!Number.isFinite(value)) return;
+  detectorAxisPref[id.endsWith('min') ? 'min' : 'max'] = value;
+  saveDetectorAxisPref();
+  redrawDetectorCharts();
+};
+
 function setSampleTrace(dataset, points, gap) {
   // Preserve gaps on a slow link. Isolated readings need a visible dot even
   // when neither neighbour is close enough to draw a line segment.
@@ -3256,7 +3313,8 @@ function drawDetectorHistory(now = performance.now(), animate = false) {
       }},
   });
   setSampleTrace(detectorChart.data.datasets[0], samples.map(p => ({x: -p.age_s - elapsed, y: p.filtered_adc * reference / 255})), .25);
-  Object.assign(detectorChart.options.scales.y, detectorAxis(sensor, elapsed));
+  Object.assign(detectorChart.options.scales.y, viewDetectorAxis(sensor, elapsed));
+  if (detectorAxisPref.auto) renderDetectorAxisControls(sensor);
   detectorChart.$scrollPixels = 0;
   detectorChart.$renderedAt = now;
   detectorChart.update('none');
@@ -3348,7 +3406,7 @@ function drawDetectorDiagnostics(now = performance.now(), animate = false) {
   for (const [index, value] of [[2, zero], [3, trigger]]) {
     detectorDiagnosticsChart.data.datasets[index].data = Number.isFinite(value) ? [{x: -30, y: value}, {x: 0, y: value}] : [];
   }
-  Object.assign(detectorDiagnosticsChart.options.scales.volts, detectorAxis(sensor, elapsed));
+  Object.assign(detectorDiagnosticsChart.options.scales.volts, viewDetectorAxis(sensor, elapsed));
   detectorDiagnosticsChart.$scrollPixels = 0;
   detectorDiagnosticsChart.$renderedAt = now;
   detectorDiagnosticsChart.update('none');

@@ -883,3 +883,9 @@ body[data-search-alert=active] #mode-align-btn:not(:disabled) { border-color: va
 /* Drive and mission controls grey out while the link is down (STOP stays live). */
 body[data-link=lost] :is(.drive-bar, #mission-steps, .mission-progress, #take-control, #probe-live) { opacity: .4; pointer-events: none; filter: grayscale(1); }
 main:has(> #link-lost:not([hidden])) { grid-template-rows: auto auto minmax(0, 1fr); }
+
+/* Detector chart: axis and alert controls */
+.axis-controls { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s3); margin-bottom: var(--s2); font-size: var(--fs-sm); color: var(--muted); }
+.axis-field { display: inline-flex; align-items: center; gap: var(--s1); }
+.axis-field input { width: 5.5rem; }
+.axis-field input:disabled { opacity: .55; }
