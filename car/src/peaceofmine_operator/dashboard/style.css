@@ -889,3 +889,22 @@ main:has(> #link-lost:not([hidden])) { grid-template-rows: auto auto minmax(0, 1
 .axis-field { display: inline-flex; align-items: center; gap: var(--s1); }
 .axis-field input { width: 5.5rem; }
 .axis-field input:disabled { opacity: .55; }
+
+/* Probe tab: controls, contact/depth graph and scan map side by side, no scrolling */
+@media (min-width: 1001px) and (min-height: 601px) {
+  .workspace:where(:not(.detector-expanded)):has([data-dock-tab="probe"].active) { grid-template-rows: minmax(0, 1fr) auto clamp(20rem, 46vh, 34rem); }
+  .pane-probe { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); overflow: hidden; }
+  .pane-probe > .probe-diagnostics-panel {
+    display: grid; grid-template-columns: minmax(11rem, 1fr) minmax(0, 2fr);
+    grid-template-rows: auto auto auto auto auto minmax(0, 1fr);
+    column-gap: var(--s3); row-gap: var(--s2); align-content: start;
+  }
+  .probe-diagnostics-panel > :not(.probe-trace-heading, .manual-probe-chart, #manual-probe-chart-error) { grid-column: 1; }
+  .probe-diagnostics-panel > .probe-trace-heading { grid-column: 2; grid-row: 1; }
+  .probe-diagnostics-panel > .manual-probe-chart { grid-column: 2; grid-row: 2 / -1; height: auto; min-height: 0; }
+  .probe-diagnostics-panel > #manual-probe-chart-error { grid-column: 2; grid-row: 6; align-self: end; }
+  .probe-diagnostics-panel .probe-graphic { display: none; }
+  .pane-probe > .probe-load { overflow: auto; }
+  .pane-probe .probe-scan-plot { flex: 1 1 auto; min-height: 6rem; }
+  .pane-probe #probe-scan-map { width: 100%; height: 100%; }
+}
