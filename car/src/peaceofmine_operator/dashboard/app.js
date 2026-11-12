@@ -220,7 +220,21 @@ let reconnectTimer = null;
 const latencyHistory = [];
 const cameraStreams = {forward: null, auxiliary: null};
 let networkCameraSignature = '';
-let autoForwardPiDone = false;
+const FORWARD_CHOSEN_KEY = 'pom.forwardCamChosen';
+// The front view opens on the car's own camera unless the operator picked one here.
+function forwardCameraChosen() {
+  try { return localStorage.getItem(FORWARD_CHOSEN_KEY) === '1'; } catch { return false; }
+}
+function preferRaspberryForward() {
+  if (forwardCameraChosen()) return false;
+  if (!['virtual', 'off'].includes(preferences.cameras.forward)) return false;
+  const firstPi = Object.keys(state.cameras || {})[0];
+  if (!firstPi) return false;
+  preferences.cameras.forward = `raspberry:${firstPi}`;
+  savePreferences();
+  rebuildCameraOptions();
+  return true;
+}
 let localCameras = [];
 let cameraDeviceRefresh = 0;
 const cameraGeneration = {forward: 0, auxiliary: 0};
@@ -2785,17 +2799,7 @@ function updateNetworkCameraOptions(force = false) {
   if (signature === networkCameraSignature && !force) return;
   if (signature !== networkCameraSignature) rebuildCameraOptions();
   networkCameraSignature = signature;
-  if (!autoForwardPiDone && preferences.cameras.forward === 'virtual') {
-    try { autoForwardPiDone = localStorage.getItem('pom.forwardCamAuto') === '1'; } catch {}
-    const firstPi = Object.keys(state.cameras || {})[0];
-    if (!autoForwardPiDone && firstPi) {
-      autoForwardPiDone = true;
-      try { localStorage.setItem('pom.forwardCamAuto', '1'); } catch {}
-      preferences.cameras.forward = `raspberry:${firstPi}`;
-      savePreferences();
-      rebuildCameraOptions();
-    }
-  }
+  preferRaspberryForward();
   for (const slot of ['forward', 'auxiliary']) {
     if (preferences.cameras[slot].startsWith('raspberry:')) startCamera(slot, preferences.cameras[slot], force);
   }
@@ -3627,6 +3631,7 @@ function initializeInputs() {
   $('refresh-cameras').onclick = () => refreshCameraDevices(true);
   $('forward-camera-source').onchange = async event => {
     stopInput();
+    try { localStorage.setItem(FORWARD_CHOSEN_KEY, '1'); } catch {}
     preferences.cameras.forward = event.target.value;
     savePreferences();
     window.saveCameraView?.('forward');

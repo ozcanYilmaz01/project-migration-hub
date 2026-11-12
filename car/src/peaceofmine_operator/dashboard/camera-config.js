@@ -19,6 +19,10 @@
       startCamera(slot, cameras[slot].source);
     }
     savePreferences(); rebuildCameraOptions(); applyCameraRotations();
+    if (typeof preferRaspberryForward === 'function' && preferRaspberryForward()) {
+      startCamera('forward', preferences.cameras.forward);
+      applyCameraRotations();
+    }
   }
   window.saveCameraView = slot => {
     const source = preferences.cameras[slot];
