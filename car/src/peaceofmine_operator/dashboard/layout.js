@@ -301,7 +301,31 @@
   }
 
   const fullTextIds = ['controller', 'controller-mapping', 'drive-block', 'drive-help', 'detector-detail', 'position', 'connection', 'ready-next'];
+  /* Mission panel extras: signal meter (alert line at 80%) and the three newest found targets. */
+  function renderExtras() {
+    const volts = parseFloat($('signal').textContent), alertLevel = parseFloat($('search-alert-level').value);
+    const ok = state.connected && Number.isFinite(volts) && alertLevel > 0;
+    const ratio = ok ? volts / alertLevel : 0;
+    $('mission-meter-fill').style.width = Math.min(100, ratio * 80) + '%';
+    $('mission-meter-fill').dataset.level = ratio >= 1 ? 'strong' : ratio >= .8 ? 'near' : '';
+    $('meter-word').textContent = !ok ? 'No signal yet' : ratio >= 1 ? 'Metal!' : ratio >= .8 ? 'Getting stronger' : 'Quiet';
+    const rows = [...document.querySelectorAll('#target-log-body tr:not(.empty-row)')].slice(0, 3);
+    const key = rows.map(r => r.textContent).join('|');
+    const list = $('recent-targets-list');
+    if (list.dataset.key === key) return;
+    list.dataset.key = key;
+    list.replaceChildren(...(rows.length ? rows.map(r => {
+      const c = r.cells, li = document.createElement('li');
+      const id = document.createElement('strong'); id.textContent = c[0]?.textContent || '';
+      const res = document.createElement('span'); res.textContent = c[5]?.textContent || '';
+      const time = document.createElement('small'); time.textContent = (c[6]?.textContent || '').split(', ').pop();
+      li.append(id, res, time); return li;
+    }) : [Object.assign(document.createElement('li'), {className: 'recent-empty', textContent: 'None yet'})]));
+  }
+  $('recent-targets-all').addEventListener('click', () => { setDetails(true); selectTab('log'); });
+
   function tick() {
+    renderExtras();
     const next = missionStage();
     if (next !== stage) {
       const entering = stage !== null;
