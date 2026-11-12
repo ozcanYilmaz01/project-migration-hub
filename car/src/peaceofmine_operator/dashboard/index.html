@@ -101,6 +101,12 @@
         <div class="dock-pane pane-split pane-signal" data-dock-pane="overview" role="tabpanel">
           <section class="pane-section detector-panel" aria-labelledby="detector-heading">
             <div class="section-head"><h2 id="detector-heading">Detector signal</h2><span id="detector-alert-note" class="head-note alert-note">Alert at — V</span><span id="detector-status" class="badge neutral">NO DATA</span><strong id="detector-voltage" class="head-value raw-readout">— V</strong><strong class="head-value word-readout" data-words-for="detector-voltage" data-tip="">No signal yet</strong></div>
+            <div class="axis-controls" role="group" aria-label="Chart voltage axis and alert level">
+              <label class="check" data-tip="Fit the axis to the last two minutes of signal. Switch off to set the axis yourself."><input id="detector-autoscale" type="checkbox" checked> Auto scale</label>
+              <label class="axis-field">Min <input id="detector-axis-min" type="number" step="any" disabled aria-label="Axis minimum in volts"><span class="unit">V</span></label>
+              <label class="axis-field">Max <input id="detector-axis-max" type="number" step="any" disabled aria-label="Axis maximum in volts"><span class="unit">V</span></label>
+              <label class="axis-field" data-tip="The car alerts you when the signal crosses this level. Saved on the car. Start driving to edit.">Alert at <input id="detector-alert-input" type="number" step="any" min="-6.144" max="6.144" disabled aria-label="Alert voltage"><span class="unit">V</span></label>
+            </div>
             <div class="chart-box detector-chart"><canvas id="detector-history" role="img" aria-label="Filtered detector voltage over the last 30 seconds"></canvas></div>
             <div class="section-foot"><p id="detector-detail">Waiting for detector data.</p><span id="sweep-status" role="status"></span></div>
           </section>
