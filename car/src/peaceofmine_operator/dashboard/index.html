@@ -442,7 +442,7 @@
       <!-- ============================================================= Cameras -->
       <section id="settings-cameras" class="settings-panel" role="tabpanel" data-settings-panel="cameras" hidden>
         <header class="panel-head">
-          <h3>Cameras <span class="tip" data-tip="Pick what the front and probe camera windows show."></span></h3>
+          <h3>Cameras <span class="tip" data-tip="Pick what the front camera window shows."></span></h3>
           <div class="panel-tools"><button id="refresh-cameras" type="button" class="quiet" data-tip="Ask this browser for permission to use cameras plugged into the laptop.">Allow laptop cameras</button></div>
         </header>
         <div class="status-bar">
@@ -462,7 +462,7 @@
             </dl>
             <p id="forward-source-detail" class="meta mono"></p>
           </article>
-          <article class="set-card camera-card">
+          <article class="set-card camera-card probe-camera-card" hidden>
             <header class="card-head"><h4>Probe camera</h4><span id="auxiliary-preview-state" class="camera-state">Waiting</span></header>
             <label class="field"><span class="field-name">Source</span><select id="aux-camera-source"><option value="off">Off</option></select></label>
             <div class="camera-settings-preview"><canvas id="auxiliary-settings-preview" width="640" height="360" aria-label="Probe camera live preview"></canvas><p id="auxiliary-preview-empty">Waiting for camera</p></div>
