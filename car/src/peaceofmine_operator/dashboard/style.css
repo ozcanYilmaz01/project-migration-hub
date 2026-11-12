@@ -183,6 +183,12 @@ dialog a { color: var(--accent); }
 .setup-head { grid-column: 1 / -1; display: flex; align-items: center; gap: var(--s3); min-height: 3.25rem; padding: 0 var(--s3); border-bottom: 1px solid var(--line); background: var(--surface); }
 .setup-head h2 { font-size: var(--fs-lg); letter-spacing: 0; text-transform: none; color: var(--text); }
 .setup-head .setup-note { margin-right: auto; cursor: help; }
+/* Close sits in the top-right corner of the window, like any other dialog. */
+.setup-head .setup-close {
+  margin-left: auto; width: var(--control-h); min-height: var(--control-h); padding: 0;
+  border-radius: 50%; font-size: var(--fs-lg); line-height: 1; color: var(--muted);
+}
+.setup-head .setup-close:hover { color: var(--text); background: var(--surface-2); }
 
 .setup-nav { display: flex; flex-direction: column; gap: var(--s1); padding: var(--s3) var(--s2); border-right: 1px solid var(--line); background: var(--surface); overflow: auto; }
 .setup-nav-group { margin: var(--s3) 0 var(--s1); padding: 0 var(--s2); color: var(--faint); font-size: var(--fs-xs); font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
