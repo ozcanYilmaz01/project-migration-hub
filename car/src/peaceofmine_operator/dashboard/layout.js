@@ -301,14 +301,8 @@
   }
 
   const fullTextIds = ['controller', 'controller-mapping', 'drive-block', 'drive-help', 'detector-detail', 'position', 'connection', 'ready-next'];
-  /* Mission panel extras: signal meter (alert line at 80%) and the three newest found targets. */
+  /* Mission panel extras: the three newest found targets. */
   function renderExtras() {
-    const volts = parseFloat($('signal').textContent), alertLevel = parseFloat($('search-alert-level').value);
-    const ok = state.connected && Number.isFinite(volts) && alertLevel > 0;
-    const ratio = ok ? volts / alertLevel : 0;
-    $('mission-meter-fill').style.width = Math.min(100, ratio * 80) + '%';
-    $('mission-meter-fill').dataset.level = ratio >= 1 ? 'strong' : ratio >= .8 ? 'near' : '';
-    $('meter-word').textContent = !ok ? 'No signal yet' : ratio >= 1 ? 'Metal!' : ratio >= .8 ? 'Getting stronger' : 'Quiet';
     const rows = [...document.querySelectorAll('#target-log-body tr:not(.empty-row)')].slice(0, 3);
     const key = rows.map(r => r.textContent).join('|');
     const list = $('recent-targets-list');
