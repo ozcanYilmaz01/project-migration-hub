@@ -2785,6 +2785,15 @@ function updateNetworkCameraOptions(force = false) {
   if (signature === networkCameraSignature && !force) return;
   if (signature !== networkCameraSignature) rebuildCameraOptions();
   networkCameraSignature = signature;
+  if (!autoForwardPiDone && preferences.cameras.forward === 'virtual') {
+    const firstPi = Object.keys(state.cameras || {})[0];
+    if (firstPi) {
+      autoForwardPiDone = true;
+      preferences.cameras.forward = `raspberry:${firstPi}`;
+      savePreferences();
+      rebuildCameraOptions();
+    }
+  }
   for (const slot of ['forward', 'auxiliary']) {
     if (preferences.cameras[slot].startsWith('raspberry:')) startCamera(slot, preferences.cameras[slot], force);
   }
