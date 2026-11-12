@@ -183,6 +183,12 @@ dialog a { color: var(--accent); }
 .setup-head { grid-column: 1 / -1; display: flex; align-items: center; gap: var(--s3); min-height: 3.25rem; padding: 0 var(--s3); border-bottom: 1px solid var(--line); background: var(--surface); }
 .setup-head h2 { font-size: var(--fs-lg); letter-spacing: 0; text-transform: none; color: var(--text); }
 .setup-head .setup-note { margin-right: auto; cursor: help; }
+/* Close sits in the top-right corner of the window, like any other dialog. */
+.setup-head .setup-close {
+  margin-left: auto; width: var(--control-h); min-height: var(--control-h); padding: 0;
+  border-radius: 50%; font-size: var(--fs-lg); line-height: 1; color: var(--muted);
+}
+.setup-head .setup-close:hover { color: var(--text); background: var(--surface-2); }
 
 .setup-nav { display: flex; flex-direction: column; gap: var(--s1); padding: var(--s3) var(--s2); border-right: 1px solid var(--line); background: var(--surface); overflow: auto; }
 .setup-nav-group { margin: var(--s3) 0 var(--s1); padding: 0 var(--s2); color: var(--faint); font-size: var(--fs-xs); font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
@@ -826,30 +832,6 @@ body[data-search-alert=active] #mode-align-btn:not(:disabled) { border-color: va
 /* Laptop (13") fit: keep the larger touch targets but trim outer padding. */
 @media (max-height: 820px) { :root { --pad: var(--s2); } }
 
-/* ===================================================== Welcome guide === */
-.help-btn { width: var(--control-h); padding: 0; border-radius: 50%; font-size: var(--fs-md); }
-.welcome { width: min(26rem, calc(100vw - 2rem)); padding: var(--s4); border: 0; border-radius: var(--radius); background: var(--surface); color: var(--text); }
-.welcome::backdrop { background: var(--overlay); }
-.welcome-art { display: grid; place-items: center; height: 8rem; margin-bottom: var(--s3); border-radius: var(--radius-sm); background: var(--bg-sunken); }
-.welcome-art svg { width: 12rem; height: auto; }
-.welcome-art .art-fill { fill: var(--surface-2); stroke: var(--muted); stroke-width: 2; }
-.welcome-art .art-dark { fill: var(--bg); stroke: var(--muted); stroke-width: 2; }
-.welcome-art .art-line, .welcome-art path.art-line { fill: none; stroke: var(--muted); stroke-width: 2; }
-.welcome-art .art-accent { fill: var(--accent); }
-.welcome-art .art-keys rect { fill: var(--surface-2); stroke: var(--muted); stroke-width: 2; }
-.welcome-art .art-keys rect.art-accent { fill: var(--accent); stroke: var(--accent); }
-.welcome-art .art-alert { fill: var(--warn-soft); stroke: var(--warn); stroke-width: 3; }
-.welcome-art .art-steps circle { fill: var(--accent); }
-.welcome-art .art-steps circle.art-ready { fill: var(--ready); }
-.welcome-art .art-text { fill: var(--text); font: 700 9px var(--font); text-anchor: middle; }
-.welcome-art .art-big { fill: var(--warn); font: 700 28px var(--font); text-anchor: middle; }
-.welcome-dots { display: flex; gap: var(--s2); justify-content: center; margin: 0 0 var(--s3); padding: 0; list-style: none; }
-.welcome-dots li { width: var(--s2); height: var(--s2); border-radius: 50%; background: var(--line-strong); }
-.welcome-dots li[data-on=true] { background: var(--accent); }
-.welcome-title { margin-bottom: var(--s2); color: var(--text); font-size: var(--fs-lg); letter-spacing: 0; text-transform: none; }
-.welcome-text { min-height: 3em; color: var(--muted); font-size: var(--fs-md); line-height: 1.5; }
-.welcome-actions { display: flex; gap: var(--s2); margin-top: var(--s4); }
-.welcome-spacer { flex: 1; }
 
 /* WASD hint on the camera while keyboard driving is captured */
 .key-hint {
