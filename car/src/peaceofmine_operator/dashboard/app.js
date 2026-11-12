@@ -220,6 +220,7 @@ let reconnectTimer = null;
 const latencyHistory = [];
 const cameraStreams = {forward: null, auxiliary: null};
 let networkCameraSignature = '';
+let autoForwardPiDone = false;
 let localCameras = [];
 let cameraDeviceRefresh = 0;
 const cameraGeneration = {forward: 0, auxiliary: 0};
@@ -2784,6 +2785,17 @@ function updateNetworkCameraOptions(force = false) {
   if (signature === networkCameraSignature && !force) return;
   if (signature !== networkCameraSignature) rebuildCameraOptions();
   networkCameraSignature = signature;
+  if (!autoForwardPiDone && preferences.cameras.forward === 'virtual') {
+    try { autoForwardPiDone = localStorage.getItem('pom.forwardCamAuto') === '1'; } catch {}
+    const firstPi = Object.keys(state.cameras || {})[0];
+    if (!autoForwardPiDone && firstPi) {
+      autoForwardPiDone = true;
+      try { localStorage.setItem('pom.forwardCamAuto', '1'); } catch {}
+      preferences.cameras.forward = `raspberry:${firstPi}`;
+      savePreferences();
+      rebuildCameraOptions();
+    }
+  }
   for (const slot of ['forward', 'auxiliary']) {
     if (preferences.cameras[slot].startsWith('raspberry:')) startCamera(slot, preferences.cameras[slot], force);
   }
