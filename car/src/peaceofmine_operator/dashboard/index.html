@@ -105,7 +105,7 @@
             <div class="section-foot"><p id="detector-detail">Waiting for detector data.</p><span id="sweep-status" role="status"></span></div>
           </section>
           <section class="pane-section map-panel" aria-labelledby="map-heading">
-            <div class="section-head"><h2 id="map-heading">Field map</h2><select id="map-mode" aria-label="Field map view"><option value="gnss">GNSS map</option><option value="local">Local grid</option></select><button id="map-follow" type="button" class="quiet" aria-pressed="true" disabled>Follow</button></div>
+            <div class="section-head"><h2 id="map-heading">Field map</h2><select id="map-mode" aria-label="Field map view"><option value="gnss">GNSS map</option><option value="local" hidden>Local grid</option></select><button id="map-follow" type="button" class="quiet" aria-pressed="true" disabled>Follow</button></div>
             <div id="gnss-map" class="field-map" aria-label="Geographic field map"><span id="gnss-map-empty" class="map-empty meta">Waiting for GNSS position</span></div>
             <p id="gnss-map-status" class="meta">Waiting for field recorder</p>
             <canvas hidden id="map-view" aria-label="Local field map"></canvas>

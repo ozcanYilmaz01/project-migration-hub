@@ -563,6 +563,9 @@ main { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: var(--gap); 
 #map-view { display: block; flex: 1 1 auto; width: 100%; min-height: 4rem; border-radius: var(--radius-sm); background: var(--bg-sunken); }
 
 #map-view[hidden], .field-map[hidden] { display: none; }
+/* Only one map view is offered now, so the picker stays out of sight; the
+   element and its handler remain for the local-grid fallback. */
+#map-mode { display: none; }
 .field-map { position: relative; isolation: isolate; flex: 1 1 auto; min-height: 5rem; width: 100%; background: var(--bg-sunken); border-radius: var(--radius-sm); }
 .field-map .map-empty { position: absolute; inset: 0; display: grid; place-items: center; }
 .field-map .map-empty[hidden] { display: none; }
