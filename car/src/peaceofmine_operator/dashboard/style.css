@@ -901,3 +901,7 @@ main:has(> #link-lost:not([hidden])) { grid-template-rows: auto auto minmax(0, 1
   .pane-probe .probe-scan-plot { flex: 1 1 auto; min-height: 6rem; }
   .pane-probe #probe-scan-map { width: 100%; height: 100%; }
 }
+
+/* Numbered found-target pins on the field map */
+.leaflet-tooltip.target-pin { padding: 0 var(--s1); background: var(--bg-sunken); color: var(--warn); border: 0; box-shadow: none; font-size: var(--fs-sm); font-weight: 700; }
+.leaflet-tooltip.target-pin::before { display: none; }

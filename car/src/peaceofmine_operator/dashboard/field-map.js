@@ -76,13 +76,18 @@
       if (point && following) map.panTo(point, {animate: false});
       if (markKey !== revision) {
         marks.clearLayers();
-        for (const entry of entries.filter(item => item.kind === 'pump_mark' && hasPosition(item))) {
+        // Every found target with a position goes on the map, numbered oldest first.
+        entries.forEach((entry, index) => {
+          if (!hasPosition(entry)) return;
+          const number = entries.length - index, mark = entry.kind === 'pump_mark';
           const label = document.createElement('span');
           const error = Number.isFinite(entry.horizontal_accuracy_m) ? ' · est. error ' + format(entry.horizontal_accuracy_m, 2) + ' m' : ' · accuracy unknown';
-          label.textContent = 'Ground mark · ' + ({within_target: 'within target', uncertain: 'uncertain', pending: 'waiting for accuracy'}[entry.gps_status] || entry.gps_status) + error;
-          L.circleMarker([entry.latitude,entry.longitude], {color: color('--bg-sunken'), fillColor: color('--warn'), weight: 2, radius: 6, fillOpacity: 1})
-            .bindTooltip(label).bindPopup(label.cloneNode(true)).addTo(marks);
-        }
+          const gps = {within_target: 'within target', uncertain: 'uncertain', pending: 'waiting for accuracy'}[entry.gps_status] || entry.gps_status;
+          label.textContent = 'Target ' + number + ' · ' + (mark ? 'ground marked' : (entry.status || 'logged').toLowerCase()) + (gps ? ' · ' + gps : '') + error;
+          L.circleMarker([entry.latitude, entry.longitude], {color: color(mark ? '--bg-sunken' : '--warn'), fillColor: color('--warn'), weight: 2, radius: mark ? 7 : 6, fillOpacity: mark ? 1 : .35})
+            .bindTooltip(String(number), {permanent: true, direction: 'top', className: 'target-pin'})
+            .bindPopup(label).addTo(marks);
+        });
         markKey = revision;
       }
     }

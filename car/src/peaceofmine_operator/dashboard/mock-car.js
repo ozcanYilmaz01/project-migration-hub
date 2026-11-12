@@ -29,7 +29,7 @@
     const mux = adcConfig.channels.find(ch => ch.enabled && ['detector','both'].includes(routes[ch.mux]))?.mux;
     mock.fieldEntries.unshift({id:String(++logSequence), timestamp:Date.now()/1000,
       x:mock.pose.x, y:mock.pose.y, heading_deg:mock.pose.yaw*180/Math.PI,
-      detector_volts:adcFiltered.get(mux) ?? null, ...event});
+      detector_volts:adcFiltered.get(mux) ?? null, ...mock.fieldFix?.(), ...event});
   }
   let logSequence = 0;
   const pump = {mode:'idle', until:0, output:0, lastRequest:null};
