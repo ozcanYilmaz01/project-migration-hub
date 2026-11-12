@@ -139,19 +139,11 @@
         </div>
 
         <div class="dock-pane pane-split pane-probe" data-dock-pane="probe" role="tabpanel" hidden>
-          <section class="pane-section probe-diagnostics-panel" aria-labelledby="manual-probe-heading">
-            <div class="section-head"><h2 id="manual-probe-heading">Manual probe</h2></div>
-            <div class="probe-graphic" aria-hidden="true"><span id="probe-arm"></span><i></i></div>
-            <label class="field-label" for="probe-slider">Push to depth</label>
-            <input id="probe-slider" type="range">
-            <div class="button-row">
-              <button id="start-probing" type="button">Probe once</button>
-            </div>
+          <section class="pane-section probe-diagnostics-panel" aria-labelledby="contact-depth-heading">
+            <div class="section-head probe-trace-heading"><h2 id="contact-depth-heading">Contact and depth</h2><span class="head-note">Last 30 s</span><button type="button" class="quiet" data-open-settings="mission">Manual probe</button></div>
             <p class="signal-words word-readout" data-words-for="probe" data-tip="">Waiting for the probe</p>
-            <div class="section-head probe-trace-heading"><h3>Contact and depth</h3><span class="head-note">Last 30 s</span></div>
             <div class="chart-box manual-probe-chart"><canvas id="manual-probe-history" role="img" aria-label="Filtered probe contact voltage and saved threshold in volts, with measured encoder depth in millimetres over the last 30 seconds"></canvas></div>
             <p id="manual-probe-chart-error" class="error-line" role="status" hidden></p>
-            <p id="manual-probe-status" class="note">Waiting for probe readings.</p>
           </section>
           <section class="pane-section probe-load" aria-labelledby="probe-map-heading">
             <div class="section-head"><h2 id="probe-map-heading">Probe scan map <span class="tip" data-tip="Each marker represents a planned probe position. Read its bearing and depth on the fan or in the grid below. A dash means depth is unknown. The dashed line marks the target bearing. Increasing bearings turn left from it."></span></h2><span id="probe-map-depth" class="head-note"></span></div>
@@ -364,6 +356,15 @@
             <div class="field-row"><span id="probe-adc-contact" class="note" role="status">Waiting for a contact reading.</span><button type="button" class="quiet" data-open-settings="contact">Contact setup</button></div>
           </div>
           <p id="probe-cycle-help" class="step-note" role="status">Waiting for probe telemetry.</p>
+        </details>
+        <details id="manual-probe-task" class="task-controls set-card" open><summary><h4 id="manual-probe-heading">Manual probe <span class="tip" data-tip="Push the probe down to a depth you choose, or send it down and back up once."></span></h4></summary>
+          <div class="probe-graphic" aria-hidden="true"><span id="probe-arm"></span><i></i></div>
+          <label class="field-label" for="probe-slider">Push to depth</label>
+          <input id="probe-slider" type="range">
+          <div class="button-row">
+            <button id="start-probing" type="button">Probe once</button>
+          </div>
+          <p id="manual-probe-status" class="note">Waiting for probe readings.</p>
         </details>
         </div>
       </section>
